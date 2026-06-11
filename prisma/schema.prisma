@@ -1,0 +1,201 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   String    @id @default(cuid())
+  username             String    @unique
+  password             String
+  displayName          String
+  isAdmin              Boolean   @default(false)
+  phase1Locked         Boolean   @default(false)
+  phase1LockedAt       DateTime?
+  phase2Locked         Boolean   @default(false)
+  phase2LockedAt       DateTime?
+  createdAt            DateTime  @default(now())
+
+  matchPredictions     MatchPrediction[]
+  standingPredictions  GroupStandingPrediction[]
+  bestThirdPredictions BestThirdPrediction[]
+  awardPredictions     AwardPrediction[]
+  finalBracket         FinalBracketPrediction?
+  score                UserScore?
+}
+
+model Team {
+  id   String @id @default(cuid())
+  name String
+  code String @unique
+
+  groupTeams GroupTeam[]
+}
+
+model Group {
+  id   String @id
+  name String @unique
+
+  teams   GroupTeam[]
+  matches Match[]
+}
+
+model GroupTeam {
+  groupId  String
+  teamId   String
+  position Int
+  group    Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  team     Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, teamId])
+}
+
+model Match {
+  id          String     @id @default(cuid())
+  matchNumber Int        @unique
+  stage       MatchStage
+  groupId     String?
+  homeTeamId  String?
+  awayTeamId  String?
+  homeLabel   String?
+  awayLabel   String?
+  kickoffAt   DateTime?
+  stadium     String?
+  homeScore   Int?
+  awayScore   Int?
+  scorersHome String?
+  scorersAway String?
+
+  group       Group?             @relation(fields: [groupId], references: [id])
+  predictions MatchPrediction[]
+}
+
+enum MatchStage {
+  GROUP
+  ROUND_32
+  ROUND_16
+  QUARTER
+  SEMI
+  THIRD_PLACE
+  FINAL
+}
+
+model MatchPrediction {
+  id        String @id @default(cuid())
+  userId    String
+  matchId   String
+  homeScore Int
+  awayScore Int
+  points    Int    @default(0)
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, matchId])
+}
+
+model GroupStandingPrediction {
+  id            String @id @default(cuid())
+  userId        String
+  groupId       String
+  firstTeamId   String
+  secondTeamId  String
+  thirdTeamId   String
+  fourthTeamId  String
+  points        Int    @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId])
+}
+
+model BestThirdPrediction {
+  id     String @id @default(cuid())
+  userId String
+  teamId String
+  points Int    @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId])
+}
+
+enum AwardCategory {
+  GOLDEN_BALL
+  GOLDEN_BOOT
+  GOLDEN_GLOVE
+  BEST_YOUNG
+}
+
+model AwardPrediction {
+  id       String        @id @default(cuid())
+  userId   String
+  category AwardCategory
+  first    String?
+  second   String?
+  third    String?
+  points   Int           @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, category])
+}
+
+model OfficialGroupStanding {
+  groupId      String @id
+  firstTeamId  String
+  secondTeamId String
+  thirdTeamId  String
+  fourthTeamId String
+}
+
+model OfficialBestThird {
+  teamId String @id
+}
+
+model OfficialAward {
+  category AwardCategory @id
+  first    String?
+  second   String?
+  third    String?
+}
+
+model FinalBracketPrediction {
+  userId             String  @id
+  championTeamId     String?
+  runnerUpTeamId     String?
+  thirdPlaceTeamId   String?
+  fourthPlaceTeamId  String?
+  points             Int     @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model OfficialFinalBracket {
+  id                 String  @id @default("default")
+  championTeamId     String?
+  runnerUpTeamId     String?
+  thirdPlaceTeamId   String?
+  fourthPlaceTeamId  String?
+}
+
+model ScoringConfig {
+  key    String @id
+  points Int
+  label  String
+}
+
+model UserScore {
+  userId          String @id
+  totalPoints     Int    @default(0)
+  matchPoints     Int    @default(0)
+  standingPoints  Int    @default(0)
+  bestThirdPoints Int    @default(0)
+  awardPoints     Int    @default(0)
+  bracketPoints   Int    @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
