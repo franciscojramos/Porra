@@ -52,11 +52,12 @@ export async function GET(request: Request) {
       },
       hint: "POST con {action: 'seed'} para cargar datos iniciales",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Error desconocido";
     return NextResponse.json(
       { 
         error: "No se puede conectar a la BD", 
-        details: error.message,
+        details: errorMessage,
         hint: "Verifica DATABASE_URL en las variables de entorno"
       },
       { status: 500 }
@@ -116,13 +117,15 @@ export async function POST(request: Request) {
           { status: 400 }
         );
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Error desconocido";
+    const errorStack = error instanceof Error ? error.stack : undefined;
     console.error("❌ Error en setup:", error);
     return NextResponse.json(
       { 
         error: "Error ejecutando setup", 
-        details: error.message,
-        stack: process.env.NODE_ENV === "development" ? error.stack : undefined
+        details: errorMessage,
+        stack: process.env.NODE_ENV === "development" ? errorStack : undefined
       },
       { status: 500 }
     );
