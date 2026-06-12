@@ -7,6 +7,9 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Para desarrollo local: DATABASE_URL="file:./dev.db"
+// Para producción (Turso): DATABASE_URL="libsql://xxx.turso.io" + driverAdapters
+
 model User {
   id                   String    @id @default(cuid())
   username             String    @unique
