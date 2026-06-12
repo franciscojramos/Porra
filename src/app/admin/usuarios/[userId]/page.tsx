@@ -6,6 +6,7 @@ import {
   unlockUserPhase2Action,
   completeUserPhase1Action,
   completeUserPhase2Action,
+  changeUserPasswordAction,
 } from "@/lib/actions";
 import { getUserProfile } from "@/lib/data";
 import { getOfficialResults } from "@/lib/official";
@@ -59,6 +60,32 @@ export default async function AdminUserEditPage({
       </div>
 
       <AdminEditBanner displayName={user.displayName} />
+
+      <Card title="Cambiar contraseña">
+        <form action={changeUserPasswordAction} className="flex flex-wrap items-end gap-3">
+          <input type="hidden" name="userId" value={user.id} />
+          <label className="flex flex-col gap-1 text-sm text-emerald-100">
+            <span>Nueva contraseña para <strong>{user.displayName}</strong></span>
+            <input
+              type="text"
+              name="newPassword"
+              placeholder="Nueva contraseña"
+              required
+              minLength={3}
+              className="rounded-lg border border-white/10 bg-emerald-950 px-3 py-2 text-white"
+            />
+          </label>
+          <button
+            type="submit"
+            className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-emerald-950 transition hover:bg-amber-400"
+          >
+            Cambiar contraseña
+          </button>
+        </form>
+        <p className="mt-2 text-xs text-emerald-300">
+          El usuario podrá iniciar sesión con esta nueva contraseña inmediatamente.
+        </p>
+      </Card>
 
       <div className="mb-6 flex flex-wrap gap-3">
         {!user.phase1Locked ? (

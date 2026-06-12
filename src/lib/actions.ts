@@ -755,3 +755,23 @@ export async function recalculateScoresAction() {
   await recalculateAllScores();
   revalidateOfficialResults();
 }
+
+export async function changeUserPasswordAction(formData: FormData) {
+  await requireAdmin();
+
+  const userId = String(formData.get("userId"));
+  const newPassword = String(formData.get("newPassword")).trim();
+
+  if (!newPassword || newPassword.length < 3) {
+    throw new Error("La contraseña debe tener al menos 3 caracteres");
+  }
+
+  const hashedPassword = await hashPassword(newPassword);
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { password: hashedPassword },
+  });
+
+  revalidatePredictionPaths(userId);
+}
