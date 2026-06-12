@@ -25,6 +25,7 @@ export async function canEditPhase1Predictions(
   options?: { adminPanel?: boolean }
 ) {
   if (actingIsAdmin && options?.adminPanel) return true;
+  if (actingIsAdmin) return false;
   if (targetUserId !== actingUserId) return false;
   return !(await isUserPhase1Locked(targetUserId));
 }
@@ -36,6 +37,7 @@ export async function canEditPhase2Predictions(
   options?: { adminPanel?: boolean }
 ) {
   if (actingIsAdmin && options?.adminPanel) return true;
+  if (actingIsAdmin) return false;
   if (targetUserId !== actingUserId) return false;
   if (await isUserPhase2Locked(targetUserId)) return false;
   const phase = await getTournamentPhaseState();

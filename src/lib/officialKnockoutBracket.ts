@@ -1,16 +1,11 @@
 import { prisma } from "./db";
 import { MatchStage } from "@prisma/client";
+import { resolveKnockoutWinner } from "./knockoutBracketResolve";
 
 type StandingByGroup = Record<
   string,
   { firstTeamId: string; secondTeamId: string; thirdTeamId: string; fourthTeamId: string }
 >;
-
-function matchWinnerSide(homeScore: number, awayScore: number) {
-  if (homeScore > awayScore) return "HOME" as const;
-  if (awayScore > homeScore) return "AWAY" as const;
-  return null;
-}
 
 function resolveSlotLabel(
   label: string | null | undefined,
@@ -118,10 +113,15 @@ export async function syncOfficialKnockoutBracket() {
       homeTeamId &&
       awayTeamId
     ) {
-      const side = matchWinnerSide(match.homeScore, match.awayScore);
-      if (side) {
-        const winnerId = side === "HOME" ? homeTeamId : awayTeamId;
-        const loserId = side === "HOME" ? awayTeamId : homeTeamId;
+      const winnerId = resolveKnockoutWinner(
+        match.homeScore,
+        match.awayScore,
+        homeTeamId,
+        awayTeamId,
+        match.winnerTeamId
+      );
+      if (winnerId) {
+        const loserId = winnerId === homeTeamId ? awayTeamId : homeTeamId;
         winners.set(match.matchNumber, winnerId);
         losers.set(match.matchNumber, loserId);
       }

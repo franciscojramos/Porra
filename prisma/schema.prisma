@@ -68,6 +68,8 @@ model Match {
   awayScore   Int?
   scorersHome String?
   scorersAway String?
+  /** Ganador en KO si el marcador es empate (90'/120'). */
+  winnerTeamId String?
 
   group       Group?             @relation(fields: [groupId], references: [id])
   predictions MatchPrediction[]
@@ -89,6 +91,8 @@ model MatchPrediction {
   matchId   String
   homeScore Int
   awayScore Int
+  /** Quién pasa en KO si el pronóstico es empate (90'/120'). */
+  advancesTeamId String?
   points    Int    @default(0)
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -127,6 +127,15 @@ export function parseScorers(value: string | null | undefined): string[] {
     .filter(Boolean);
 }
 
+/** Clave normalizada para agrupar el mismo jugador (ignora código FIFA). */
+export function normalizePlayerKey(value: string) {
+  return value.replace(/\s*\([A-Z]{3}\)\s*$/, "").trim().toLowerCase();
+}
+
+export function displayPlayerLabel(value: string) {
+  return value.trim();
+}
+
 export function formatScorers(values: string[]) {
   return values.filter(Boolean).join(", ") || null;
 }

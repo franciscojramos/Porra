@@ -121,11 +121,17 @@ async function main() {
   console.log("Seed completado: 48 equipos, 104 partidos oficiales.");
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+// Exportar para uso en API routes
+export default main;
+
+// Ejecutar si es script directo
+if (require.main === module) {
+  main()
+    .catch((e) => {
+      console.error(e);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}

@@ -2,6 +2,7 @@ import { prisma } from "./db";
 import { getSession } from "./auth";
 import { getOfficialResults } from "./official";
 import { deriveFinalBracketFromKnockout } from "./knockoutBracket";
+import { PARTICIPANT_USER_WHERE } from "./participants";
 import { getTournamentPhaseState } from "./tournamentPhase";
 import { MatchStage } from "@prisma/client";
 
@@ -60,6 +61,7 @@ export async function getGroupsWithData(
   const phase1Locked = user?.phase1Locked ?? false;
   const editable =
     !!session &&
+    !session.isAdmin &&
     (options?.adminEdit && session.isAdmin
       ? true
       : session.id === userId && !phase1Locked);
@@ -72,7 +74,7 @@ export async function getGroupsWithData(
     locked: phase1Locked,
     phase1Locked,
     editable: !!editable,
-    isOwnProfile: session?.id === userId,
+    isOwnProfile: !session?.isAdmin && session?.id === userId,
     predictedThirdTeams: Object.entries(predictions.standingPredictions)
       .map(([groupId, standing]) => {
         const team = teamMap[standing.thirdTeamId];
@@ -130,7 +132,10 @@ export async function getKnockoutMatches(
     !!session &&
     (adminPanel
       ? true
-      : session.id === userId && !phase2Locked && phase.knockoutWindowOpen);
+      : !session.isAdmin &&
+        session.id === userId &&
+        !phase2Locked &&
+        phase.knockoutWindowOpen);
 
   const derivedBracket =
     userId && phase.phase2Open
@@ -206,6 +211,7 @@ export async function getAwardsData(
   const phase1Locked = user?.phase1Locked ?? false;
   const editable =
     !!session &&
+    !session.isAdmin &&
     (options?.adminEdit && session.isAdmin
       ? true
       : session.id === userId && !phase1Locked);
@@ -221,6 +227,7 @@ export async function getAwardsData(
 
 export async function getAllUsers() {
   return prisma.user.findMany({
+    where: PARTICIPANT_USER_WHERE,
     select: {
       id: true,
       username: true,
@@ -256,6 +263,7 @@ export async function getUserProfile(
   });
 
   if (!user) return null;
+  if (user.isAdmin && !options?.adminEdit) return null;
 
   const [groupsData, knockoutData, awardsData, officialResults] = await Promise.all([
     getGroupsWithData(userId, options),

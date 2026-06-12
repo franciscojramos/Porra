@@ -5,6 +5,7 @@ import { OfficialAwardResult } from "@/components/OfficialAwardResult";
 import { OfficialGroupStanding } from "@/components/OfficialGroupStanding";
 import { OfficialMatchResult } from "@/components/OfficialMatchResult";
 import { getMatchAwayName, getMatchHomeName, getMatchMeta } from "@/lib/matchDisplay";
+import { formatTeamDisplay } from "@/lib/teamFlags";
 import type { getOfficialResults } from "@/lib/official";
 
 const AWARD_LABELS: Record<AwardCategory, string> = {
@@ -36,6 +37,34 @@ type ProfileData = {
   officialResults: Awaited<ReturnType<typeof getOfficialResults>>;
 };
 
+const SCORE_BREAKDOWN = [
+  {
+    key: "matchPoints" as const,
+    label: "Partidos",
+    description: "Marcadores en fase de grupos y eliminatorias",
+  },
+  {
+    key: "standingPoints" as const,
+    label: "Grupos",
+    description: "Clasificación predicha (1º, 2º, 3º y 4º por grupo)",
+  },
+  {
+    key: "bestThirdPoints" as const,
+    label: "8 mejores terceros",
+    description: "Aciertos entre tus 8 terceros elegidos",
+  },
+  {
+    key: "awardPoints" as const,
+    label: "Premios",
+    description: "Balón de Oro, Bota, Guante y Mejor joven",
+  },
+  {
+    key: "bracketPoints" as const,
+    label: "Cuadro de honor",
+    description: "Campeón, subcampeón, 3º y 4º puesto",
+  },
+];
+
 export function UserProfilePredictions({ profile }: { profile: ProfileData }) {
   const { user, groupsData, knockoutData, awardsData, officialResults } = profile;
   const { teamMap, groups, matchPredictions, standingPredictions, bestThirdTeamIds } =
@@ -48,21 +77,41 @@ export function UserProfilePredictions({ profile }: { profile: ProfileData }) {
   return (
     <div className="space-y-8">
       <Card>
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-sm text-emerald-300">Puntos totales</p>
             <p className="text-4xl font-black text-emerald-300">
               {user.score?.totalPoints ?? 0}
             </p>
+            <p className="mt-2 max-w-md text-sm text-emerald-200">
+              Suma de todas las categorías. El desglose detallado está abajo en cada
+              sección de pronósticos.
+            </p>
           </div>
-          <div className="flex flex-wrap gap-4 text-sm text-emerald-100">
-            <span>Partidos: {user.score?.matchPoints ?? 0}</span>
-            <span>Grupos: {user.score?.standingPoints ?? 0}</span>
-            <span>3ºs: {user.score?.bestThirdPoints ?? 0}</span>
-            <span>Premios: {user.score?.awardPoints ?? 0}</span>
-            <span>Honor: {user.score?.bracketPoints ?? 0}</span>
+
+          <div className="min-w-0 flex-1 lg:max-w-xl">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-emerald-400">
+              Desglose de puntos
+            </p>
+            <ul className="space-y-2">
+              {SCORE_BREAKDOWN.map(({ key, label, description }) => (
+                <li
+                  key={key}
+                  className="flex items-start justify-between gap-4 rounded-lg bg-emerald-950/40 px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-white">{label}</p>
+                    <p className="text-xs text-emerald-300">{description}</p>
+                  </div>
+                  <span className="shrink-0 text-lg font-bold tabular-nums text-emerald-300">
+                    {user.score?.[key] ?? 0}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
-          <div className="flex flex-wrap gap-2 text-sm">
+
+          <div className="flex flex-wrap gap-2 text-sm lg:flex-col lg:items-end">
             {user.phase1Locked ? (
               <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-emerald-200">
                 Fase 1 enviada
@@ -143,7 +192,7 @@ export function UserProfilePredictions({ profile }: { profile: ProfileData }) {
                       const team = teamMap[teamId as string];
                       return (
                         <li key={pos as string}>
-                          {pos}: {team?.name ?? "—"}
+                          {pos}: {team ? formatTeamDisplay(team.name, team.code) : "—"}
                         </li>
                       );
                     })}
@@ -174,7 +223,7 @@ export function UserProfilePredictions({ profile }: { profile: ProfileData }) {
               const isOfficial = officialResults.officialThirdIds.has(team.id);
               return (
                 <li key={team.id} className="text-sm">
-                  {team.name} ({team.code})
+                  {formatTeamDisplay(team.name, team.code, { showCode: true })}
                   {isOfficial && (
                     <span className="ml-2 text-xs text-emerald-300">✓ Oficial</span>
                   )}
@@ -188,7 +237,9 @@ export function UserProfilePredictions({ profile }: { profile: ProfileData }) {
         {officialResults.hasThirds && (
           <p className="mt-3 text-xs text-emerald-400">
             Oficiales:{" "}
-            {officialResults.officialThirdTeams.map((t) => t.name).join(", ")}
+            {officialResults.officialThirdTeams
+              .map((t) => formatTeamDisplay(t.name, t.code))
+              .join(", ")}
           </p>
         )}
       </Card>
@@ -243,25 +294,37 @@ export function UserProfilePredictions({ profile }: { profile: ProfileData }) {
             <li>
               🏆 Campeón:{" "}
               {knockoutData.derivedBracket.championTeamId
-                ? teamMap[knockoutData.derivedBracket.championTeamId]?.name
+                ? formatTeamDisplay(
+                    teamMap[knockoutData.derivedBracket.championTeamId]!.name,
+                    teamMap[knockoutData.derivedBracket.championTeamId]!.code
+                  )
                 : "—"}
             </li>
             <li>
               🥈 Subcampeón:{" "}
               {knockoutData.derivedBracket.runnerUpTeamId
-                ? teamMap[knockoutData.derivedBracket.runnerUpTeamId]?.name
+                ? formatTeamDisplay(
+                    teamMap[knockoutData.derivedBracket.runnerUpTeamId]!.name,
+                    teamMap[knockoutData.derivedBracket.runnerUpTeamId]!.code
+                  )
                 : "—"}
             </li>
             <li>
               🥉 3º:{" "}
               {knockoutData.derivedBracket.thirdPlaceTeamId
-                ? teamMap[knockoutData.derivedBracket.thirdPlaceTeamId]?.name
+                ? formatTeamDisplay(
+                    teamMap[knockoutData.derivedBracket.thirdPlaceTeamId]!.name,
+                    teamMap[knockoutData.derivedBracket.thirdPlaceTeamId]!.code
+                  )
                 : "—"}
             </li>
             <li>
               4º:{" "}
               {knockoutData.derivedBracket.fourthPlaceTeamId
-                ? teamMap[knockoutData.derivedBracket.fourthPlaceTeamId]?.name
+                ? formatTeamDisplay(
+                    teamMap[knockoutData.derivedBracket.fourthPlaceTeamId]!.name,
+                    teamMap[knockoutData.derivedBracket.fourthPlaceTeamId]!.code
+                  )
                 : "—"}
             </li>
           </ul>
@@ -316,13 +379,13 @@ export function ProfileLinks({
         {!phase1Locked && (
           <>
             <Link
-              href="/grupos"
+              href="/mis-pronosticos?tab=grupos"
               className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-emerald-950"
             >
               Grupos
             </Link>
             <Link
-              href="/premios"
+              href="/mis-pronosticos?tab=premios"
               className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-emerald-950"
             >
               Premios
@@ -331,12 +394,18 @@ export function ProfileLinks({
         )}
         {!phase2Locked && (
           <Link
-            href="/eliminatorias"
+            href="/mis-pronosticos?tab=eliminatorias"
             className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-emerald-950"
           >
             Eliminatorias
           </Link>
         )}
+        <Link
+          href="/mis-pronosticos"
+          className="rounded-xl border border-emerald-400/40 px-4 py-2 text-sm font-semibold text-emerald-200 hover:bg-white/5"
+        >
+          Ver todo
+        </Link>
       </div>
     </Card>
   );

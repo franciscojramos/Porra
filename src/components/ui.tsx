@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import { formatTeamDisplay } from "@/lib/teamFlags";
 
 export function PageShell({
   title,
@@ -10,10 +11,12 @@ export function PageShell({
   children: ReactNode;
 }) {
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white">{title}</h1>
-        {subtitle && <p className="mt-2 text-emerald-100">{subtitle}</p>}
+    <main className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl font-bold text-white sm:text-3xl">{title}</h1>
+        {subtitle && (
+          <p className="mt-2 break-words text-sm text-emerald-100 sm:text-base">{subtitle}</p>
+        )}
       </div>
       {children}
     </main>
@@ -103,7 +106,7 @@ export function TeamSelect({
         <option value="">Elegir...</option>
         {teams.map((team) => (
           <option key={team.id} value={team.id}>
-            {team.name} ({team.code})
+            {formatTeamDisplay(team.name, team.code, { showCode: true })}
           </option>
         ))}
       </select>

@@ -8,7 +8,7 @@ export default async function ClasificacionPage() {
   return (
     <PageShell
       title="Clasificación porra"
-      subtitle="Ranking por puntos. Pulsa en un jugador para ver todos sus pronósticos."
+      subtitle="Ranking por puntos totales. Entra en cada perfil para ver el desglose."
     >
       <Card>
         <div className="overflow-x-auto">
@@ -17,12 +17,7 @@ export default async function ClasificacionPage() {
               <tr className="text-emerald-200">
                 <th>#</th>
                 <th>Jugador</th>
-                <th>Partidos</th>
-                <th>Grupos</th>
-                <th>3º mej.</th>
-                <th>Premios</th>
-                <th>Honor</th>
-                <th>Total</th>
+                <th className="text-right">Puntos</th>
                 <th></th>
               </tr>
             </thead>
@@ -31,18 +26,13 @@ export default async function ClasificacionPage() {
                 <tr key={user.id} className="text-white">
                   <td>{index + 1}</td>
                   <td className="font-semibold">{user.displayName}</td>
-                  <td>{user.score?.matchPoints ?? 0}</td>
-                  <td>{user.score?.standingPoints ?? 0}</td>
-                  <td>{user.score?.bestThirdPoints ?? 0}</td>
-                  <td>{user.score?.awardPoints ?? 0}</td>
-                  <td>{user.score?.bracketPoints ?? 0}</td>
-                  <td className="text-lg font-bold text-emerald-300">
+                  <td className="text-right text-lg font-bold text-emerald-300">
                     {user.score?.totalPoints ?? 0}
                   </td>
-                  <td>
+                  <td className="text-right">
                     <Link
                       href={`/jugadores/${user.id}`}
-                      className="text-sm text-emerald-300 hover:underline"
+                      className="inline-block rounded-lg border border-emerald-400/40 bg-emerald-500/15 px-3 py-1.5 text-sm font-medium text-emerald-100 transition hover:bg-emerald-500/25"
                     >
                       Ver perfil
                     </Link>

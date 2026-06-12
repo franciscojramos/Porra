@@ -1,3 +1,5 @@
+import { formatTeamDisplay } from "@/lib/teamFlags";
+
 type TeamLike = { id: string; name: string; code: string };
 
 export function OfficialGroupStanding({
@@ -53,7 +55,7 @@ export function OfficialGroupStanding({
 
           return (
             <li key={pos} className={hit ? "text-emerald-300" : undefined}>
-              {pos}: {team?.name ?? "—"}
+              {pos}: {team ? formatTeamDisplay(team.name, team.code) : "—"}
               {hit && <span className="ml-1 text-xs text-amber-200">✓</span>}
             </li>
           );

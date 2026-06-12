@@ -54,10 +54,14 @@ export default async function AdminPartidoEditPage({
           matchId={match.id}
           homeName={homeName}
           awayName={awayName}
+          homeTeamId={match.homeTeamId}
+          awayTeamId={match.awayTeamId}
+          isKnockout={match.stage !== "GROUP"}
           homePlayers={homePlayers}
           awayPlayers={awayPlayers}
           defaultHomeScore={match.homeScore}
           defaultAwayScore={match.awayScore}
+          defaultWinnerTeamId={match.winnerTeamId}
           defaultScorersHome={match.scorersHome}
           defaultScorersAway={match.scorersAway}
           action={saveOfficialMatchAction}

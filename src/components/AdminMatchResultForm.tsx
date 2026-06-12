@@ -8,10 +8,14 @@ type Props = {
   matchId: string;
   homeName: string;
   awayName: string;
+  homeTeamId?: string | null;
+  awayTeamId?: string | null;
+  isKnockout?: boolean;
   homePlayers: PlayerOption[];
   awayPlayers: PlayerOption[];
   defaultHomeScore?: number | null;
   defaultAwayScore?: number | null;
+  defaultWinnerTeamId?: string | null;
   defaultScorersHome?: string | null;
   defaultScorersAway?: string | null;
   action: (formData: FormData) => void | Promise<void>;
@@ -78,17 +82,22 @@ export function AdminMatchResultForm({
   matchId,
   homeName,
   awayName,
+  homeTeamId,
+  awayTeamId,
+  isKnockout = false,
   homePlayers,
   awayPlayers,
   defaultHomeScore,
   defaultAwayScore,
+  defaultWinnerTeamId,
   defaultScorersHome,
   defaultScorersAway,
   action,
   submitLabel = "Guardar resultado",
 }: Props) {
   const [homeScore, setHomeScore] = useState(clampScore(defaultHomeScore ?? 0));
-  const [awayScore, setAwayScore] = useState(clampScore(defaultAwayScore ?? 0));
+  const [awayScore, setAwayScore] = useState(clampScore(Number(defaultAwayScore ?? 0)));
+  const [winnerTeamId, setWinnerTeamId] = useState(defaultWinnerTeamId ?? "");
 
   const homeDefaults = useMemo(
     () =>
@@ -142,8 +151,41 @@ export function AdminMatchResultForm({
       </div>
 
       <p className="text-xs text-emerald-400">
-        Al cambiar el marcador se muestran los selectores de goleador correspondientes.
+        Marcador sobre 90&apos; o 120&apos; (antes de penaltis).
+        {isKnockout && homeScore === awayScore && homeTeamId && awayTeamId
+          ? " En empate, indica quién gana."
+          : " Al cambiar el marcador se muestran los goleadores."}
       </p>
+
+      {isKnockout && homeScore === awayScore && homeTeamId && awayTeamId && (
+        <fieldset className="space-y-2 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3">
+          <legend className="px-1 text-sm font-medium text-amber-100">
+            Ganador (prórroga / penaltis)
+          </legend>
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-emerald-100">
+            <input
+              type="radio"
+              name="winnerTeamId"
+              value={homeTeamId}
+              checked={winnerTeamId === homeTeamId}
+              onChange={() => setWinnerTeamId(homeTeamId)}
+              required
+            />
+            {homeName}
+          </label>
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-emerald-100">
+            <input
+              type="radio"
+              name="winnerTeamId"
+              value={awayTeamId}
+              checked={winnerTeamId === awayTeamId}
+              onChange={() => setWinnerTeamId(awayTeamId)}
+              required
+            />
+            {awayName}
+          </label>
+        </fieldset>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2">
         <ScorerFields

@@ -1,3 +1,5 @@
+import { formatTeamDisplay } from "./teamFlags";
+
 export type StandingByGroup = Record<
   string,
   { firstTeamId: string; secondTeamId: string; thirdTeamId: string; fourthTeamId: string }
@@ -13,9 +15,30 @@ export type KnockoutMatchInput = {
   awayTeamId?: string | null;
 };
 
+/** Resuelve el ganador en eliminatorias (90'/120'). Con empate usa el desempate. */
+export function resolveKnockoutWinner(
+  homeScore: number,
+  awayScore: number,
+  homeTeamId: string | null | undefined,
+  awayTeamId: string | null | undefined,
+  tiebreakerTeamId: string | null | undefined
+): string | null {
+  const side = matchWinnerSide(homeScore, awayScore);
+  if (side === "HOME") return homeTeamId ?? null;
+  if (side === "AWAY") return awayTeamId ?? null;
+  if (
+    tiebreakerTeamId &&
+    (tiebreakerTeamId === homeTeamId || tiebreakerTeamId === awayTeamId)
+  ) {
+    return tiebreakerTeamId;
+  }
+  return null;
+}
+
 export type PredictionInput = {
   homeScore: number;
   awayScore: number;
+  advancesTeamId?: string | null;
 };
 
 export type TeamInfo = {
@@ -135,14 +158,18 @@ export function computeBracketState(
     let isTie = false;
 
     if (pred && homeTeamId && awayTeamId) {
-      const side = matchWinnerSide(pred.homeScore, pred.awayScore);
-      if (side === "HOME") {
-        winnerTeamId = homeTeamId;
+      winnerTeamId = resolveKnockoutWinner(
+        pred.homeScore,
+        pred.awayScore,
+        homeTeamId,
+        awayTeamId,
+        pred.advancesTeamId
+      );
+      if (winnerTeamId === homeTeamId) {
         loserTeamId = awayTeamId;
-      } else if (side === "AWAY") {
-        winnerTeamId = awayTeamId;
+      } else if (winnerTeamId === awayTeamId) {
         loserTeamId = homeTeamId;
-      } else {
+      } else if (pred.homeScore === pred.awayScore) {
         isTie = true;
       }
 
@@ -191,8 +218,14 @@ export function teamDisplayName(
   teamMap: Record<string, TeamInfo | undefined>,
   officialTeamId?: string | null
 ): string {
-  if (teamId && teamMap[teamId]) return teamMap[teamId]!.name;
-  if (officialTeamId && teamMap[officialTeamId]) return teamMap[officialTeamId]!.name;
+  if (teamId && teamMap[teamId]) {
+    const t = teamMap[teamId]!;
+    return formatTeamDisplay(t.name, t.code);
+  }
+  if (officialTeamId && teamMap[officialTeamId]) {
+    const t = teamMap[officialTeamId]!;
+    return formatTeamDisplay(t.name, t.code);
+  }
   return label ?? "Por definir";
 }
 

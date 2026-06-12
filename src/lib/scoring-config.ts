@@ -106,14 +106,14 @@ export const SCORING_RULES: ScoringRule[] = [
   {
     key: "ko_quarter_semi_1x2",
     points: 8,
-    label: "Cuartos/Semifinal · Acertar 1X2",
+    label: "Cuartos/Semis/Final/3º puesto · Acertar ganador (90'/120')",
     phase: "fase2",
     block: "Partidos eliminatorias",
   },
   {
     key: "ko_quarter_semi_exact_bonus",
     points: 4,
-    label: "Cuartos/Semifinal · Bonus marcador exacto (+4, total 12)",
+    label: "Cuartos/Semis/Final/3º puesto · Bonus marcador exacto (+4, total 12)",
     phase: "fase2",
     block: "Partidos eliminatorias",
   },

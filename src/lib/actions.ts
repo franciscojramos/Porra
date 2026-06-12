@@ -23,6 +23,7 @@ function revalidateOfficialResults(matchNumber?: number) {
   revalidatePath("/grupos");
   revalidatePath("/eliminatorias");
   revalidatePath("/premios");
+  revalidatePath("/mis-pronosticos");
   revalidatePath("/clasificacion");
   revalidatePath("/reglas");
   revalidatePath("/perfil");
@@ -39,6 +40,7 @@ function revalidatePredictionPaths(userId?: string) {
   revalidatePath("/grupos");
   revalidatePath("/eliminatorias");
   revalidatePath("/premios");
+  revalidatePath("/mis-pronosticos");
   revalidatePath("/perfil");
   revalidatePath("/jugadores");
   revalidatePath("/inicio");
@@ -108,7 +110,7 @@ export async function confirmPhase1Action(formData: FormData) {
   if (!confirmed) return;
 
   const user = await prisma.user.findUnique({ where: { id: session.id } });
-  if (!user || user.phase1Locked) return;
+  if (!user || user.isAdmin || user.phase1Locked) return;
 
   await prisma.user.update({
     where: { id: session.id },
@@ -134,7 +136,7 @@ export async function confirmPhase2Action(formData: FormData) {
   if (!confirmed) return;
 
   const user = await prisma.user.findUnique({ where: { id: session.id } });
-  if (!user || user.phase2Locked) return;
+  if (!user || user.isAdmin || user.phase2Locked) return;
 
   const allowed = await canEditPhase2Predictions(session.id, session.id, session.isAdmin);
   if (!allowed) return;
@@ -204,7 +206,7 @@ export async function completeUserPhase1Action(formData: FormData) {
 
   const userId = String(formData.get("userId"));
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user || user.phase1Locked) return;
+  if (!user || user.isAdmin || user.phase1Locked) return;
 
   await prisma.user.update({
     where: { id: userId },
@@ -222,7 +224,7 @@ export async function completeUserPhase2Action(formData: FormData) {
 
   const userId = String(formData.get("userId"));
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user || user.phase2Locked) return;
+  if (!user || user.isAdmin || user.phase2Locked) return;
 
   await prisma.user.update({
     where: { id: userId },
@@ -281,15 +283,26 @@ export async function saveMatchPredictionAction(formData: FormData) {
 
   const homeScore = Number(formData.get("homeScore"));
   const awayScore = Number(formData.get("awayScore"));
+  const advancesRaw = String(formData.get("advancesTeamId") || "").trim();
+  const advancesTeamId = advancesRaw || null;
 
   if (Number.isNaN(homeScore) || Number.isNaN(awayScore) || homeScore < 0 || awayScore < 0) {
     return;
   }
 
+  if (match.stage !== "GROUP") {
+    const { homeTeamId, awayTeamId } = match;
+    if (homeScore === awayScore && homeTeamId && awayTeamId) {
+      if (!advancesTeamId || ![homeTeamId, awayTeamId].includes(advancesTeamId)) {
+        return;
+      }
+    }
+  }
+
   await prisma.matchPrediction.upsert({
     where: { userId_matchId: { userId, matchId } },
-    create: { userId, matchId, homeScore, awayScore },
-    update: { homeScore, awayScore, points: 0 },
+    create: { userId, matchId, homeScore, awayScore, advancesTeamId },
+    update: { homeScore, awayScore, advancesTeamId, points: 0 },
   });
 
   if (match.stage !== "GROUP") {
@@ -392,6 +405,173 @@ export async function saveAwardPredictionAction(formData: FormData) {
   revalidatePredictionPaths(userId);
 }
 
+function parseScoreField(formData: FormData, matchId: string) {
+  const homeRaw = formData.get(`score_${matchId}_home`);
+  const awayRaw = formData.get(`score_${matchId}_away`);
+  if (homeRaw === null || awayRaw === null || homeRaw === "" || awayRaw === "") {
+    return null;
+  }
+  const homeScore = Number(homeRaw);
+  const awayScore = Number(awayRaw);
+  if (Number.isNaN(homeScore) || Number.isNaN(awayScore) || homeScore < 0 || awayScore < 0) {
+    return null;
+  }
+  return { homeScore, awayScore };
+}
+
+async function upsertGroupMatchPredictions(
+  userId: string,
+  groupId: string,
+  formData: FormData
+) {
+  const matches = await prisma.match.findMany({
+    where: { groupId, stage: "GROUP" },
+  });
+
+  for (const match of matches) {
+    const scores = parseScoreField(formData, match.id);
+    if (!scores) continue;
+
+    await prisma.matchPrediction.upsert({
+      where: { userId_matchId: { userId, matchId: match.id } },
+      create: { userId, matchId: match.id, ...scores, points: 0 },
+      update: { ...scores, points: 0 },
+    });
+  }
+}
+
+async function upsertGroupStandingFromForm(
+  userId: string,
+  groupId: string,
+  formData: FormData
+) {
+  const firstTeamId = String(formData.get(`standing_${groupId}_firstTeamId`) || "");
+  const secondTeamId = String(formData.get(`standing_${groupId}_secondTeamId`) || "");
+  const thirdTeamId = String(formData.get(`standing_${groupId}_thirdTeamId`) || "");
+  const fourthTeamId = String(formData.get(`standing_${groupId}_fourthTeamId`) || "");
+
+  if (!firstTeamId || !secondTeamId || !thirdTeamId || !fourthTeamId) {
+    return false;
+  }
+
+  const ids = [firstTeamId, secondTeamId, thirdTeamId, fourthTeamId];
+  if (new Set(ids).size !== 4) {
+    return false;
+  }
+
+  await prisma.groupStandingPrediction.upsert({
+    where: { userId_groupId: { userId, groupId } },
+    create: {
+      userId,
+      groupId,
+      firstTeamId,
+      secondTeamId,
+      thirdTeamId,
+      fourthTeamId,
+    },
+    update: { firstTeamId, secondTeamId, thirdTeamId, fourthTeamId, points: 0 },
+  });
+
+  return true;
+}
+
+async function upsertBestThirdsFromForm(userId: string, formData: FormData) {
+  const teamIds = formData.getAll("teamId").map(String);
+  if (teamIds.length !== 8) return false;
+
+  const standings = await prisma.groupStandingPrediction.findMany({
+    where: { userId },
+    select: { thirdTeamId: true },
+  });
+  const allowedThirdIds = new Set(standings.map((s) => s.thirdTeamId));
+
+  if (teamIds.some((teamId) => !allowedThirdIds.has(teamId))) return false;
+  if (new Set(teamIds).size !== 8) return false;
+
+  await prisma.bestThirdPrediction.deleteMany({ where: { userId } });
+  await prisma.bestThirdPrediction.createMany({
+    data: teamIds.map((teamId) => ({ userId, teamId })),
+  });
+
+  return true;
+}
+
+/** Guarda partidos + clasificación de un solo grupo */
+export async function saveGroupPhase1Action(formData: FormData) {
+  const { allowed, userId } = await assertCanSavePhase1Prediction(formData);
+  if (!allowed) return;
+
+  const groupId = String(formData.get("groupId") || "");
+  if (!groupId) return;
+
+  await upsertGroupMatchPredictions(userId, groupId, formData);
+  await upsertGroupStandingFromForm(userId, groupId, formData);
+  await syncFinalBracketFromKnockout(userId).catch(() => null);
+  revalidatePredictionPaths(userId);
+}
+
+/** Guarda todos los grupos + 8 mejores terceros */
+export async function saveAllGruposPhase1Action(formData: FormData) {
+  const { allowed, userId } = await assertCanSavePhase1Prediction(formData);
+  if (!allowed) return;
+
+  const groups = await prisma.group.findMany({ select: { id: true } });
+
+  for (const { id: groupId } of groups) {
+    await upsertGroupMatchPredictions(userId, groupId, formData);
+    await upsertGroupStandingFromForm(userId, groupId, formData);
+  }
+
+  await upsertBestThirdsFromForm(userId, formData);
+  await syncFinalBracketFromKnockout(userId).catch(() => null);
+  revalidatePredictionPaths(userId);
+}
+
+const AWARD_CATEGORIES: AwardCategory[] = [
+  "GOLDEN_BALL",
+  "GOLDEN_BOOT",
+  "GOLDEN_GLOVE",
+  "BEST_YOUNG",
+];
+
+async function upsertAwardFromForm(
+  userId: string,
+  category: AwardCategory,
+  formData: FormData
+) {
+  const first = String(formData.get(`${category}_first`) || "").trim() || null;
+  const second = String(formData.get(`${category}_second`) || "").trim() || null;
+  const third = String(formData.get(`${category}_third`) || "").trim() || null;
+
+  if (
+    !isValidAwardPlayer(category, first) ||
+    !isValidAwardPlayer(category, second) ||
+    !isValidAwardPlayer(category, third)
+  ) {
+    return false;
+  }
+
+  await prisma.awardPrediction.upsert({
+    where: { userId_category: { userId, category } },
+    create: { userId, category, first, second, third },
+    update: { first, second, third, points: 0 },
+  });
+
+  return true;
+}
+
+/** Guarda los 4 premios individuales de una vez */
+export async function saveAllAwardsAction(formData: FormData) {
+  const { allowed, userId } = await assertCanSavePhase1Prediction(formData);
+  if (!allowed) return;
+
+  for (const category of AWARD_CATEGORIES) {
+    await upsertAwardFromForm(userId, category, formData);
+  }
+
+  revalidatePredictionPaths(userId);
+}
+
 export async function saveOfficialMatchAction(formData: FormData) {
   await requireAdmin();
 
@@ -411,6 +591,24 @@ export async function saveOfficialMatchAction(formData: FormData) {
       ? scorerAwayList.join(", ")
       : String(formData.get("scorersAway") || "").trim() || null;
 
+  const matchBefore = await prisma.match.findUnique({ where: { id: matchId } });
+  const winnerRaw = String(formData.get("winnerTeamId") || "").trim();
+  let winnerTeamId: string | null = winnerRaw || null;
+
+  if (matchBefore && matchBefore.stage !== "GROUP") {
+    if (homeScore !== awayScore) {
+      winnerTeamId = null;
+    } else if (matchBefore.homeTeamId && matchBefore.awayTeamId) {
+      if (!winnerTeamId || ![matchBefore.homeTeamId, matchBefore.awayTeamId].includes(winnerTeamId)) {
+        return;
+      }
+    } else {
+      winnerTeamId = null;
+    }
+  } else {
+    winnerTeamId = null;
+  }
+
   await prisma.match.update({
     where: { id: matchId },
     data: {
@@ -418,6 +616,7 @@ export async function saveOfficialMatchAction(formData: FormData) {
       awayScore,
       scorersHome,
       scorersAway,
+      winnerTeamId,
     },
   });
 

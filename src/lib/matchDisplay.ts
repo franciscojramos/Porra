@@ -1,3 +1,5 @@
+import { formatTeamDisplay } from "./teamFlags";
+
 type TeamLike = { id: string; name: string; code: string } | undefined;
 
 type MatchLike = {
@@ -28,7 +30,8 @@ export function getMatchHomeName(
   teamMap: Record<string, TeamLike>
 ) {
   if (match.homeTeamId && teamMap[match.homeTeamId]) {
-    return teamMap[match.homeTeamId]!.name;
+    const team = teamMap[match.homeTeamId]!;
+    return formatTeamDisplay(team.name, team.code);
   }
   return match.homeLabel ?? "—";
 }
@@ -38,7 +41,8 @@ export function getMatchAwayName(
   teamMap: Record<string, TeamLike>
 ) {
   if (match.awayTeamId && teamMap[match.awayTeamId]) {
-    return teamMap[match.awayTeamId]!.name;
+    const team = teamMap[match.awayTeamId]!;
+    return formatTeamDisplay(team.name, team.code);
   }
   return match.awayLabel ?? "—";
 }

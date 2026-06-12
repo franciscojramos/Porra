@@ -3,7 +3,7 @@ import "./globals.css";
 import { NavBar } from "@/components/NavBar";
 
 export const metadata: Metadata = {
-  title: "Porra Mundial 2026",
+  title: "Porrita.io Amigos",
   description: "Porra del Mundial entre amigos",
 };
 

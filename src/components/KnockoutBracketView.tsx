@@ -6,7 +6,6 @@ import { saveMatchPredictionAction } from "@/lib/actions";
 import {
   computeBracketState,
   teamDisplayName,
-  teamCode,
   type KnockoutMatchInput,
   type PredictionInput,
   type StandingByGroup,
@@ -66,7 +65,6 @@ function buildWinnerDestinations(matches: KnockoutMatchInput[]) {
 
 function BracketTeamRow({
   name,
-  code,
   score,
   isWinner,
   isLoser,
@@ -75,7 +73,6 @@ function BracketTeamRow({
   placeholder,
 }: {
   name: string;
-  code: string;
   score: number;
   isWinner: boolean;
   isLoser: boolean;
@@ -95,9 +92,6 @@ function BracketTeamRow({
               : "bg-emerald-950/50"
       }`}
     >
-      <span className="w-7 shrink-0 text-[10px] font-bold uppercase text-emerald-400">
-        {code}
-      </span>
       <span className={`min-w-0 flex-1 truncate text-sm ${isWinner ? "font-semibold text-white" : "text-emerald-100"}`}>
         {name}
       </span>
@@ -125,6 +119,7 @@ function BracketMatchCard({
   editable,
   destination,
   onScoresChange,
+  onAdvancesChange,
   saving,
 }: {
   match: SerializedMatch;
@@ -134,6 +129,7 @@ function BracketMatchCard({
   editable: boolean;
   destination: { matchNumber: number; side: "home" | "away" } | undefined;
   onScoresChange: (home: number, away: number) => void;
+  onAdvancesChange: (teamId: string) => void;
   saving: boolean;
 }) {
   const homeName = teamDisplayName(
@@ -148,12 +144,11 @@ function BracketMatchCard({
     teamMap,
     match.awayTeamId
   );
-  const homeCode = teamCode(slot.homeTeamId, teamMap, match.homeTeamId);
-  const awayCode = teamCode(slot.awayTeamId, teamMap, match.awayTeamId);
-
   const winnerId = slot.winnerTeamId;
   const homeWinner = winnerId === slot.homeTeamId;
   const awayWinner = winnerId === slot.awayTeamId;
+  const isDrawScore =
+    slot.isReady && prediction.homeScore === prediction.awayScore;
 
   return (
     <div
@@ -170,7 +165,7 @@ function BracketMatchCard({
           #{match.matchNumber}
         </span>
         {slot.isTie && (
-          <span className="text-[10px] text-amber-300">Sin empates</span>
+          <span className="text-[10px] text-amber-300">Elige ganador</span>
         )}
         {!slot.isReady && (
           <span className="text-[10px] text-emerald-500">Esperando…</span>
@@ -180,7 +175,6 @@ function BracketMatchCard({
       <div className="space-y-1">
         <BracketTeamRow
           name={homeName}
-          code={homeCode}
           score={prediction.homeScore}
           isWinner={homeWinner}
           isLoser={!!winnerId && !homeWinner && slot.isReady}
@@ -190,7 +184,6 @@ function BracketMatchCard({
         />
         <BracketTeamRow
           name={awayName}
-          code={awayCode}
           score={prediction.awayScore}
           isWinner={awayWinner}
           isLoser={!!winnerId && !awayWinner && slot.isReady}
@@ -199,6 +192,38 @@ function BracketMatchCard({
           onScoreChange={(v) => onScoresChange(prediction.homeScore, v)}
         />
       </div>
+
+      {isDrawScore && editable && slot.homeTeamId && slot.awayTeamId && (
+        <div className="mt-2 space-y-1 rounded-lg border border-amber-400/30 bg-amber-500/10 p-2">
+          <p className="text-[10px] text-amber-100">
+            Empate a {prediction.homeScore}-{prediction.awayScore} · ¿quién pasa?
+          </p>
+          <div className="flex flex-col gap-1">
+            <button
+              type="button"
+              onClick={() => onAdvancesChange(slot.homeTeamId!)}
+              className={`rounded px-2 py-1 text-left text-[11px] transition ${
+                prediction.advancesTeamId === slot.homeTeamId
+                  ? "bg-emerald-500 font-semibold text-emerald-950"
+                  : "bg-emerald-950/60 text-emerald-100 hover:bg-white/10"
+              }`}
+            >
+              {homeName}
+            </button>
+            <button
+              type="button"
+              onClick={() => onAdvancesChange(slot.awayTeamId!)}
+              className={`rounded px-2 py-1 text-left text-[11px] transition ${
+                prediction.advancesTeamId === slot.awayTeamId
+                  ? "bg-emerald-500 font-semibold text-emerald-950"
+                  : "bg-emerald-950/60 text-emerald-100 hover:bg-white/10"
+              }`}
+            >
+              {awayName}
+            </button>
+          </div>
+        </div>
+      )}
 
       {winnerId && destination && (
         <p className="mt-2 text-[10px] text-emerald-300 transition-opacity duration-300">
@@ -222,7 +247,8 @@ export function KnockoutBracketView({
   const [predictions, setPredictions] = useState<Record<string, PredictionInput>>(() => {
     const base: Record<string, PredictionInput> = {};
     for (const m of matches) {
-      base[m.id] = initialPredictions[m.id] ?? { homeScore: 0, awayScore: 0 };
+      const initial = initialPredictions[m.id];
+      base[m.id] = initial ?? { homeScore: 0, awayScore: 0, advancesTeamId: null };
     }
     return base;
   });
@@ -247,7 +273,7 @@ export function KnockoutBracketView({
   }, [matches]);
 
   const persistPrediction = useCallback(
-    (matchId: string, homeScore: number, awayScore: number) => {
+    (matchId: string, homeScore: number, awayScore: number, advancesTeamId: string | null) => {
       const existing = saveTimers.current.get(matchId);
       if (existing) clearTimeout(existing);
 
@@ -259,6 +285,7 @@ export function KnockoutBracketView({
           fd.set("matchId", matchId);
           fd.set("homeScore", String(homeScore));
           fd.set("awayScore", String(awayScore));
+          if (advancesTeamId) fd.set("advancesTeamId", advancesTeamId);
 
           startTransition(async () => {
             await saveMatchPredictionAction(fd);
@@ -278,13 +305,35 @@ export function KnockoutBracketView({
 
   const handleScoresChange = useCallback(
     (matchId: string, homeScore: number, awayScore: number) => {
-      setPredictions((prev) => ({
-        ...prev,
-        [matchId]: { homeScore, awayScore },
-      }));
-      if (editable) {
-        persistPrediction(matchId, homeScore, awayScore);
-      }
+      setPredictions((prev) => {
+        const current = prev[matchId] ?? { homeScore: 0, awayScore: 0, advancesTeamId: null };
+        const advancesTeamId =
+          homeScore === awayScore ? current.advancesTeamId ?? null : null;
+        const next = { ...prev, [matchId]: { homeScore, awayScore, advancesTeamId } };
+        if (editable) {
+          persistPrediction(matchId, homeScore, awayScore, advancesTeamId);
+        }
+        return next;
+      });
+    },
+    [editable, persistPrediction]
+  );
+
+  const handleAdvancesChange = useCallback(
+    (matchId: string, teamId: string) => {
+      setPredictions((prev) => {
+        const current = prev[matchId] ?? { homeScore: 0, awayScore: 0, advancesTeamId: null };
+        const next = { ...prev, [matchId]: { ...current, advancesTeamId: teamId } };
+        if (editable) {
+          persistPrediction(
+            matchId,
+            current.homeScore,
+            current.awayScore,
+            teamId
+          );
+        }
+        return next;
+      });
     },
     [editable, persistPrediction]
   );
@@ -365,7 +414,11 @@ export function KnockoutBracketView({
                   <div className="flex flex-1 flex-col justify-around gap-0">
                     {stageMatches.map((match) => {
                       const slot = bracketState.slots[match.id];
-                      const pred = predictions[match.id] ?? { homeScore: 0, awayScore: 0 };
+                      const pred = predictions[match.id] ?? {
+                        homeScore: 0,
+                        awayScore: 0,
+                        advancesTeamId: null,
+                      };
                       const dest = winnerDestinations.get(match.matchNumber);
 
                       return (
@@ -390,6 +443,9 @@ export function KnockoutBracketView({
                               destination={dest}
                               saving={savingIds.has(match.id)}
                               onScoresChange={(h, a) => handleScoresChange(match.id, h, a)}
+                              onAdvancesChange={(teamId) =>
+                                handleAdvancesChange(match.id, teamId)
+                              }
                             />
                             {savedFlash === match.id && (
                               <span className="absolute -right-1 -top-1 rounded-full bg-emerald-500 px-1.5 py-0.5 text-[9px] font-bold text-emerald-950">
@@ -420,7 +476,11 @@ export function KnockoutBracketView({
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {stageMatches.map((match) => {
                     const slot = bracketState.slots[match.id];
-                    const pred = predictions[match.id] ?? { homeScore: 0, awayScore: 0 };
+                    const pred = predictions[match.id] ?? {
+                      homeScore: 0,
+                      awayScore: 0,
+                      advancesTeamId: null,
+                    };
                     const dest = winnerDestinations.get(match.matchNumber);
 
                     return (
@@ -434,6 +494,9 @@ export function KnockoutBracketView({
                         destination={dest}
                         saving={savingIds.has(match.id)}
                         onScoresChange={(h, a) => handleScoresChange(match.id, h, a)}
+                        onAdvancesChange={(teamId) =>
+                          handleAdvancesChange(match.id, teamId)
+                        }
                       />
                     );
                   })}
@@ -446,8 +509,8 @@ export function KnockoutBracketView({
 
       {!bracketState.complete && editable && (
         <p className="text-xs text-amber-200">
-          Completa toda la llave sin empates. Necesitas Fase 1 guardada (grupos + 8 terceros) para
-          resolver los dieciseisavos.
+          Marcador sobre 90&apos; o 120&apos; (antes de penaltis). Si empatas, elige quién pasa.
+          Necesitas Fase 1 guardada para resolver los dieciseisavos.
         </p>
       )}
     </div>

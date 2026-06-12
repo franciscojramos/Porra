@@ -1,4 +1,5 @@
 import { prisma } from "./db";
+import { PARTICIPANT_USER_WHERE } from "./participants";
 import { computeGroupStandings } from "./standings";
 import { getMatchStatus, madridDateKey } from "./madridTime";
 
@@ -80,6 +81,7 @@ export async function getMatchDetail(matchNumber: number) {
         include: { teams: { include: { team: true }, orderBy: { position: "asc" } } },
       },
       predictions: {
+        where: { user: PARTICIPANT_USER_WHERE },
         include: {
           user: {
             select: { id: true, displayName: true, username: true },

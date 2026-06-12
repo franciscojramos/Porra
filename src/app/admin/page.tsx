@@ -15,6 +15,7 @@ import {
 import { getAdminData } from "@/lib/data";
 import { getTournamentPhaseState } from "@/lib/tournamentPhase";
 import { getMatchAwayName, getMatchHomeName } from "@/lib/matchDisplay";
+import { formatTeamDisplay } from "@/lib/teamFlags";
 import { PageShell, Card, SubmitButton, TeamSelect } from "@/components/ui";
 import { OfficialAwardForm } from "@/components/OfficialAwardForm";
 import { AwardCategory } from "@prisma/client";
@@ -249,7 +250,7 @@ export default async function AdminPage() {
                     defaultChecked={data.officialThirdIds.has(team.id)}
                   />
                   <span>
-                    {team.name} ({team.code})
+                    {formatTeamDisplay(team.name, team.code, { showCode: true })}
                   </span>
                 </label>
               ))}

@@ -15,6 +15,7 @@ import {
 export default async function PerfilPage() {
   const session = await getSession();
   if (!session) redirect("/login");
+  if (session.isAdmin) redirect("/admin");
 
   const profile = await getUserProfile(session.id);
   if (!profile) redirect("/login");

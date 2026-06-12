@@ -6,6 +6,8 @@ import {
   STATUS_LABELS,
 } from "@/lib/madridTime";
 import { getMatchAwayName, getMatchHomeName } from "@/lib/matchDisplay";
+import { formatTeamDisplay } from "@/lib/teamFlags";
+import { MatchScoreboard } from "@/components/MatchScoreboard";
 import { PageShell, Card } from "@/components/ui";
 
 function StatusBadge({ status }: { status: string }) {
@@ -41,18 +43,14 @@ export default async function InicioPage() {
                   Partido #{featured.matchNumber}
                 </span>
               </div>
-              <p className="text-2xl font-bold text-white">
-                {getMatchHomeName(featured, data.teamMap)}{" "}
-                {featured.homeScore !== null && featured.awayScore !== null ? (
-                  <span className="text-emerald-300">
-                    {featured.homeScore} - {featured.awayScore}
-                  </span>
-                ) : (
-                  <span className="text-emerald-400">vs</span>
-                )}{" "}
-                {getMatchAwayName(featured, data.teamMap)}
-              </p>
-              <p className="mt-2 text-sm text-emerald-200">
+              <MatchScoreboard
+                homeName={getMatchHomeName(featured, data.teamMap)}
+                awayName={getMatchAwayName(featured, data.teamMap)}
+                homeScore={featured.homeScore}
+                awayScore={featured.awayScore}
+                size="md"
+              />
+              <p className="mt-2 break-words text-sm text-emerald-200">
                 {formatMadridDateTime(featured.kickoffAt)}
                 {featured.stadium ? ` · ${featured.stadium}` : ""}
               </p>
@@ -61,13 +59,13 @@ export default async function InicioPage() {
                 (featured.scorersHome || featured.scorersAway) && (
                   <div className="mt-3 space-y-1 text-sm text-emerald-200">
                     {featured.scorersHome && (
-                      <p>
+                      <p className="break-words">
                         <strong>{getMatchHomeName(featured, data.teamMap)}:</strong>{" "}
                         {featured.scorersHome}
                       </p>
                     )}
                     {featured.scorersAway && (
-                      <p>
+                      <p className="break-words">
                         <strong>{getMatchAwayName(featured, data.teamMap)}:</strong>{" "}
                         {featured.scorersAway}
                       </p>
@@ -107,7 +105,11 @@ export default async function InicioPage() {
                     {group.rows.map((row) => (
                       <tr key={row.teamId}>
                         <td>{row.position}</td>
-                        <td>{row.team?.name ?? "—"}</td>
+                        <td>
+                          {row.team
+                            ? formatTeamDisplay(row.team.name, row.team.code)
+                            : "—"}
+                        </td>
                         <td>{row.played}</td>
                         <td className="font-semibold text-emerald-300">{row.points}</td>
                         <td>{row.gd > 0 ? `+${row.gd}` : row.gd}</td>
@@ -134,18 +136,18 @@ export default async function InicioPage() {
                       href={`/partidos/${match.matchNumber}`}
                       className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-emerald-950/40 px-3 py-2 text-sm transition hover:bg-emerald-950/60"
                     >
-                      <div>
-                        <span className="text-xs text-emerald-400">#{match.matchNumber}</span>{" "}
-                        {getMatchHomeName(match, data.teamMap)}{" "}
-                        {match.homeScore !== null ? (
-                          <strong className="text-emerald-300">
-                            {match.homeScore}-{match.awayScore}
-                          </strong>
-                        ) : (
-                          "vs"
-                        )}{" "}
-                        {getMatchAwayName(match, data.teamMap)}
-                        <p className="text-xs text-emerald-400">
+                      <div className="min-w-0 flex-1">
+                        <span className="text-xs text-emerald-400">#{match.matchNumber}</span>
+                        <div className="mt-1 flex flex-col gap-0.5 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-1">
+                          <span className="break-words">{getMatchHomeName(match, data.teamMap)}</span>
+                          <span className="shrink-0 font-semibold text-emerald-300">
+                            {match.homeScore !== null
+                              ? `${match.homeScore}-${match.awayScore}`
+                              : "vs"}
+                          </span>
+                          <span className="break-words">{getMatchAwayName(match, data.teamMap)}</span>
+                        </div>
+                        <p className="mt-1 text-xs text-emerald-400">
                           {formatMadridDateTime(match.kickoffAt)}
                         </p>
                       </div>

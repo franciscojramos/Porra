@@ -28,7 +28,6 @@ export default async function JugadoresPage() {
               </div>
               <p className="mt-3 text-xs text-emerald-300">
                 F1 {user.phase1Locked ? "✓" : "…"} · F2 {user.phase2Locked ? "✓" : "…"}
-                {user.isAdmin ? " · Admin" : ""}
               </p>
             </Card>
           </Link>

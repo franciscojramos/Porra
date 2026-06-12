@@ -55,8 +55,13 @@ export default function ReglasPage() {
               cuando el admin publique el honor oficial.
             </li>
             <li>
-              <strong>Marcador exacto:</strong> suma bonus al 1X2 (no sustituye). En grupos: 3+2=5.
-              Dieciseisavos/octavos: 5+3=8. Cuartos/semis: 8+4=12.
+              <strong>Marcador exacto:</strong> suma bonus al ganador (no sustituye). En grupos: 3+2=5.
+              Dieciseisavos/octavos: 5+3=8. Cuartos, semis, final y 3.er puesto: 8+4=12.
+            </li>
+            <li>
+              <strong>Eliminatorias:</strong> pronosticas el marcador a los 90&apos; o 120&apos; (antes
+              de penaltis). Si empatas, debes elegir quién pasa. Lo mismo aplica al resultado oficial
+              que guarda el admin.
             </li>
             <li>
               <strong>Clasificación de grupo:</strong> 4 pts por acertar los 2 clasificados sin orden;

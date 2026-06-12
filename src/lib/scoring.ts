@@ -1,6 +1,8 @@
 import { MatchStage } from "@prisma/client";
 import { prisma } from "./db";
 import { syncFinalBracketFromKnockout } from "./knockoutBracket";
+import { resolveKnockoutWinner } from "./knockoutBracketResolve";
+import { PARTICIPANT_USER_WHERE } from "./participants";
 import { getTournamentPhaseState } from "./tournamentPhase";
 
 function normalizePlayerName(value: string) {
@@ -32,22 +34,43 @@ function matchOutcome(home: number, away: number) {
 
 function scoreMatchPrediction(
   stage: MatchStage,
-  predicted: { homeScore: number; awayScore: number },
+  predicted: { homeScore: number; awayScore: number; advancesTeamId?: string | null },
   actual: { homeScore: number; awayScore: number },
+  matchTeams: {
+    homeTeamId: string | null;
+    awayTeamId: string | null;
+    winnerTeamId: string | null;
+  },
   config: Record<string, number>
 ) {
   const exact =
     predicted.homeScore === actual.homeScore &&
     predicted.awayScore === actual.awayScore;
-  const correct1x2 =
-    matchOutcome(predicted.homeScore, predicted.awayScore) ===
-    matchOutcome(actual.homeScore, actual.awayScore);
 
   if (stage === MatchStage.GROUP) {
+    const correct1x2 =
+      matchOutcome(predicted.homeScore, predicted.awayScore) ===
+      matchOutcome(actual.homeScore, actual.awayScore);
     if (!correct1x2) return 0;
     const base = config.group_match_1x2 ?? 3;
     return exact ? base + (config.group_match_exact_bonus ?? 2) : base;
   }
+
+  const predWinner = resolveKnockoutWinner(
+    predicted.homeScore,
+    predicted.awayScore,
+    matchTeams.homeTeamId,
+    matchTeams.awayTeamId,
+    predicted.advancesTeamId
+  );
+  const actualWinner = resolveKnockoutWinner(
+    actual.homeScore,
+    actual.awayScore,
+    matchTeams.homeTeamId,
+    matchTeams.awayTeamId,
+    matchTeams.winnerTeamId
+  );
+  const correct1x2 = !!(predWinner && actualWinner && predWinner === actualWinner);
 
   const earlyKnockout = stage === MatchStage.ROUND_32 || stage === MatchStage.ROUND_16;
   const lateKnockout =
@@ -209,7 +232,10 @@ export async function recalculateAllScores() {
 
   const phase = await getTournamentPhaseState();
 
-  const users = await prisma.user.findMany({ select: { id: true } });
+  const users = await prisma.user.findMany({
+    where: PARTICIPANT_USER_WHERE,
+    select: { id: true },
+  });
   const matches = await prisma.match.findMany();
   const officialStandings = await prisma.officialGroupStanding.findMany();
   const officialThirds = await prisma.officialBestThird.findMany();
@@ -248,6 +274,11 @@ export async function recalculateAllScores() {
         match.stage,
         prediction,
         { homeScore: match.homeScore, awayScore: match.awayScore },
+        {
+          homeTeamId: match.homeTeamId,
+          awayTeamId: match.awayTeamId,
+          winnerTeamId: match.winnerTeamId,
+        },
         config
       );
 
@@ -384,6 +415,7 @@ export async function recalculateAllScores() {
 
 export async function getLeaderboard() {
   return prisma.user.findMany({
+    where: PARTICIPANT_USER_WHERE,
     include: { score: true },
     orderBy: { score: { totalPoints: "desc" } },
   });

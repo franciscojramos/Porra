@@ -1,6 +1,7 @@
 import { prisma } from "./db";
 import {
   computeBracketState,
+  resolveKnockoutWinner,
   resolveSlotLabel,
   matchWinnerSide,
   type StandingByGroup,
@@ -42,7 +43,14 @@ export async function deriveFinalBracketFromKnockout(
   );
 
   const predByMatchId = Object.fromEntries(
-    predictions.map((p) => [p.matchId, { homeScore: p.homeScore, awayScore: p.awayScore }])
+    predictions.map((p) => [
+      p.matchId,
+      {
+        homeScore: p.homeScore,
+        awayScore: p.awayScore,
+        advancesTeamId: p.advancesTeamId,
+      },
+    ])
   );
 
   const state = computeBracketState(
@@ -86,5 +94,5 @@ export async function syncFinalBracketFromKnockout(userId: string) {
   return derived;
 }
 
-export { resolveSlotLabel, matchWinnerSide, computeBracketState };
+export { resolveSlotLabel, matchWinnerSide, resolveKnockoutWinner, computeBracketState };
 export type { StandingByGroup } from "./knockoutBracketResolve";

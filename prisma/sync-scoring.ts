@@ -23,6 +23,12 @@ async function main() {
   console.log(`Reglas de puntuación sincronizadas: ${SCORING_RULES.length}`);
 }
 
-main()
-  .catch(console.error)
-  .finally(() => prisma.$disconnect());
+// Exportar para uso en API routes
+export default main;
+
+// Ejecutar si es script directo
+if (require.main === module) {
+  main()
+    .catch(console.error)
+    .finally(() => prisma.$disconnect());
+}
