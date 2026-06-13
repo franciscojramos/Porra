@@ -71,6 +71,10 @@ model Match {
   awayScore   Int?
   scorersHome String?
   scorersAway String?
+  /** Autogoles a favor del equipo local (marcados por visitantes). */
+  ownGoalsHome String?
+  /** Autogoles a favor del equipo visitante (marcados por locales). */
+  ownGoalsAway String?
   /** Ganador en KO si el marcador es empate (90'/120'). */
   winnerTeamId String?
 

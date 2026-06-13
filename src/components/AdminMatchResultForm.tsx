@@ -18,6 +18,8 @@ type Props = {
   defaultWinnerTeamId?: string | null;
   defaultScorersHome?: string | null;
   defaultScorersAway?: string | null;
+  defaultOwnGoalsHome?: string | null;
+  defaultOwnGoalsAway?: string | null;
   action: (formData: FormData) => void | Promise<void>;
   submitLabel?: string;
 };
@@ -92,6 +94,8 @@ export function AdminMatchResultForm({
   defaultWinnerTeamId,
   defaultScorersHome,
   defaultScorersAway,
+  defaultOwnGoalsHome,
+  defaultOwnGoalsAway,
   action,
   submitLabel = "Guardar resultado",
 }: Props) {
@@ -202,6 +206,37 @@ export function AdminMatchResultForm({
           defaults={awayDefaults}
           fallbackDefault={defaultScorersAway}
         />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <label className="flex flex-col gap-1 text-xs text-emerald-100">
+          <span className="text-amber-200">
+            ⚽ Autogoles a favor de {homeName} (marcados por {awayName})
+          </span>
+          <input
+            name="ownGoalsHome"
+            defaultValue={defaultOwnGoalsHome ?? ""}
+            placeholder="Nombre, nombre… (opcional)"
+            className="w-full rounded border border-white/10 bg-emerald-950 px-2 py-1"
+          />
+          <span className="text-xs text-emerald-400">
+            Ejemplo: Guardado, Moreno
+          </span>
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-emerald-100">
+          <span className="text-amber-200">
+            ⚽ Autogoles a favor de {awayName} (marcados por {homeName})
+          </span>
+          <input
+            name="ownGoalsAway"
+            defaultValue={defaultOwnGoalsAway ?? ""}
+            placeholder="Nombre, nombre… (opcional)"
+            className="w-full rounded border border-white/10 bg-emerald-950 px-2 py-1"
+          />
+          <span className="text-xs text-emerald-400">
+            Ejemplo: Dest, Zimmerman
+          </span>
+        </label>
       </div>
 
       <SubmitButton label={submitLabel} />

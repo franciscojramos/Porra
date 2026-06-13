@@ -64,10 +64,12 @@ export default async function AdminPartidoEditPage({
           defaultWinnerTeamId={match.winnerTeamId}
           defaultScorersHome={match.scorersHome}
           defaultScorersAway={match.scorersAway}
+          defaultOwnGoalsHome={match.ownGoalsHome}
+          defaultOwnGoalsAway={match.ownGoalsAway}
           action={saveOfficialMatchAction}
         />
 
-        {(match.scorersHome || match.scorersAway) && (
+        {(match.scorersHome || match.scorersAway || match.ownGoalsHome || match.ownGoalsAway) && (
           <div className="mt-6 rounded-xl bg-emerald-950/40 p-3 text-sm text-emerald-100">
             <p className="mb-1 font-semibold text-emerald-300">Goleadores guardados</p>
             {match.scorersHome && (
@@ -78,6 +80,16 @@ export default async function AdminPartidoEditPage({
             {match.scorersAway && (
               <p>
                 <strong>{awayName}:</strong> {match.scorersAway}
+              </p>
+            )}
+            {match.ownGoalsHome && (
+              <p className="text-amber-200">
+                <strong>⚽ Autogoles a favor de {homeName}:</strong> {match.ownGoalsHome}
+              </p>
+            )}
+            {match.ownGoalsAway && (
+              <p className="text-amber-200">
+                <strong>⚽ Autogoles a favor de {awayName}:</strong> {match.ownGoalsAway}
               </p>
             )}
           </div>

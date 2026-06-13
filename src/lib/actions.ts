@@ -591,6 +591,9 @@ export async function saveOfficialMatchAction(formData: FormData) {
       ? scorerAwayList.join(", ")
       : String(formData.get("scorersAway") || "").trim() || null;
 
+  const ownGoalsHome = String(formData.get("ownGoalsHome") || "").trim() || null;
+  const ownGoalsAway = String(formData.get("ownGoalsAway") || "").trim() || null;
+
   const matchBefore = await prisma.match.findUnique({ where: { id: matchId } });
   const winnerRaw = String(formData.get("winnerTeamId") || "").trim();
   let winnerTeamId: string | null = winnerRaw || null;
@@ -616,6 +619,8 @@ export async function saveOfficialMatchAction(formData: FormData) {
       awayScore,
       scorersHome,
       scorersAway,
+      ownGoalsHome,
+      ownGoalsAway,
       winnerTeamId,
     },
   });

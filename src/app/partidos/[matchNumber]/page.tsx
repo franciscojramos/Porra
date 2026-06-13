@@ -53,7 +53,7 @@ export default async function PartidoPage({
             {match.stadium && <li className="break-words">Estadio: {match.stadium}</li>}
             {match.groupId && <li>Grupo {match.groupId}</li>}
           </ul>
-          {hasResult && (match.scorersHome || match.scorersAway) && (
+          {hasResult && (match.scorersHome || match.scorersAway || match.ownGoalsHome || match.ownGoalsAway) && (
             <div className="mt-4 space-y-2 rounded-xl bg-emerald-950/40 p-3 text-sm">
               {match.scorersHome && (
                 <p className="break-words">
@@ -63,6 +63,16 @@ export default async function PartidoPage({
               {match.scorersAway && (
                 <p className="break-words">
                   <strong>{awayName}:</strong> {match.scorersAway}
+                </p>
+              )}
+              {match.ownGoalsHome && (
+                <p className="break-words text-amber-200">
+                  <strong>⚽ Autogoles a favor de {homeName}:</strong> {match.ownGoalsHome}
+                </p>
+              )}
+              {match.ownGoalsAway && (
+                <p className="break-words text-amber-200">
+                  <strong>⚽ Autogoles a favor de {awayName}:</strong> {match.ownGoalsAway}
                 </p>
               )}
             </div>
