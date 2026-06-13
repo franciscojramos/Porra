@@ -16,6 +16,7 @@ type MatchLike = {
 export function formatKickoff(date: Date | null | undefined) {
   if (!date) return null;
   return new Intl.DateTimeFormat("es-ES", {
+    timeZone: "Europe/Madrid",
     weekday: "short",
     day: "numeric",
     month: "short",

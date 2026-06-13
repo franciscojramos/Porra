@@ -5,7 +5,12 @@ import { getMatchStatus, madridDateKey } from "./madridTime";
 
 export async function getAllMatchesWithTeams() {
   const [matches, teams] = await Promise.all([
-    prisma.match.findMany({ orderBy: { matchNumber: "asc" } }),
+    prisma.match.findMany({ 
+      orderBy: [
+        { kickoffAt: "asc" },
+        { matchNumber: "asc" }
+      ]
+    }),
     prisma.team.findMany(),
   ]);
 
@@ -42,6 +47,13 @@ export async function getHomeDashboard() {
     const key = madridDateKey(match.kickoffAt);
     if (!byDay.has(key)) byDay.set(key, []);
     byDay.get(key)!.push(match);
+  }
+
+  // Ordenar partidos dentro de cada día por hora
+  for (const matches of Array.from(byDay.values())) {
+    matches.sort((a, b) => 
+      (a.kickoffAt?.getTime() || 0) - (b.kickoffAt?.getTime() || 0)
+    );
   }
 
   const days = Array.from(byDay.entries())
