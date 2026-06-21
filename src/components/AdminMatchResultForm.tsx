@@ -22,6 +22,7 @@ type Props = {
   defaultOwnGoalsAway?: string | null;
   action: (formData: FormData) => void | Promise<void>;
   submitLabel?: string;
+  redirectUrl?: string;
 };
 
 function clampScore(value: number) {
@@ -98,6 +99,7 @@ export function AdminMatchResultForm({
   defaultOwnGoalsAway,
   action,
   submitLabel = "Guardar resultado",
+  redirectUrl,
 }: Props) {
   const [homeScore, setHomeScore] = useState(clampScore(defaultHomeScore ?? 0));
   const [awayScore, setAwayScore] = useState(clampScore(Number(defaultAwayScore ?? 0)));
@@ -123,6 +125,7 @@ export function AdminMatchResultForm({
   return (
     <form action={action} className="space-y-4">
       <input type="hidden" name="matchId" value={matchId} />
+      {redirectUrl && <input type="hidden" name="redirectUrl" value={redirectUrl} />}
 
       <div className="flex flex-wrap items-end gap-3">
         <span className="min-w-[120px] font-semibold text-white">{homeName}</span>

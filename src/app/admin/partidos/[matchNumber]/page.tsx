@@ -67,6 +67,7 @@ export default async function AdminPartidoEditPage({
           defaultOwnGoalsHome={match.ownGoalsHome}
           defaultOwnGoalsAway={match.ownGoalsAway}
           action={saveOfficialMatchAction}
+          redirectUrl={`/admin/partidos/${match.matchNumber}`}
         />
 
         {(match.scorersHome || match.scorersAway || match.ownGoalsHome || match.ownGoalsAway) && (

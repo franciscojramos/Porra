@@ -631,6 +631,12 @@ export async function saveOfficialMatchAction(formData: FormData) {
 
   await recalculateAllScores();
   revalidateOfficialResults(match?.matchNumber);
+
+  // Redirigir con mensaje de confirmación
+  const redirectUrl = String(formData.get("redirectUrl") || "").trim();
+  if (redirectUrl && match) {
+    redirect(`${redirectUrl}?msg=${encodeURIComponent("Partido guardado correctamente")}`);
+  }
 }
 
 export async function saveOfficialStandingAction(formData: FormData) {

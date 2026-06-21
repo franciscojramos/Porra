@@ -9,6 +9,10 @@ import { getMatchAwayName, getMatchHomeName } from "@/lib/matchDisplay";
 import { MatchMetaBadges } from "@/components/MatchMetaBadges";
 import { MatchScoreboard } from "@/components/MatchScoreboard";
 import { PageShell, Card } from "@/components/ui";
+import { getSession } from "@/lib/auth";
+import { AdminMatchResultForm } from "@/components/AdminMatchResultForm";
+import { saveOfficialMatchAction } from "@/lib/actions";
+import { getPlayersByTeamCode } from "@/lib/players";
 
 export default async function PartidoPage({
   params,
@@ -27,6 +31,16 @@ export default async function PartidoPage({
   const homeName = getMatchHomeName(match, teamMap);
   const awayName = getMatchAwayName(match, teamMap);
 
+  // Verificar si el usuario es admin
+  const session = await getSession();
+  const isAdmin = session?.isAdmin ?? false;
+
+  // Obtener plantillas para los equipos si es admin
+  const homeTeam = match.homeTeamId ? teamMap[match.homeTeamId] : null;
+  const awayTeam = match.awayTeamId ? teamMap[match.awayTeamId] : null;
+  const homePlayers = isAdmin ? getPlayersByTeamCode(homeTeam?.code) : [];
+  const awayPlayers = isAdmin ? getPlayersByTeamCode(awayTeam?.code) : [];
+
   return (
     <PageShell title={`Partido #${match.matchNumber}`}>
       <MatchMetaBadges match={match} className="mb-4" />
@@ -36,6 +50,35 @@ export default async function PartidoPage({
       >
         ← Volver a actualidad
       </Link>
+
+      {isAdmin && (
+        <div className="mb-6">
+          <Card title="🔧 Admin: Editar resultado oficial">
+            <p className="mb-4 text-xs text-emerald-400">
+              Puedes actualizar el resultado directamente desde aquí.
+            </p>
+            <AdminMatchResultForm
+              matchId={match.id}
+              homeName={homeName}
+              awayName={awayName}
+              homeTeamId={match.homeTeamId}
+              awayTeamId={match.awayTeamId}
+              isKnockout={match.stage !== "GROUP"}
+              homePlayers={homePlayers}
+              awayPlayers={awayPlayers}
+              defaultHomeScore={match.homeScore}
+              defaultAwayScore={match.awayScore}
+              defaultWinnerTeamId={match.winnerTeamId}
+              defaultScorersHome={match.scorersHome}
+              defaultScorersAway={match.scorersAway}
+              defaultOwnGoalsHome={match.ownGoalsHome}
+              defaultOwnGoalsAway={match.ownGoalsAway}
+              action={saveOfficialMatchAction}
+              redirectUrl={`/partidos/${match.matchNumber}`}
+            />
+          </Card>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card title="Información del partido">
