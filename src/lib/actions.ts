@@ -636,6 +636,9 @@ export async function saveOfficialMatchAction(formData: FormData) {
   const redirectUrl = String(formData.get("redirectUrl") || "").trim();
   if (redirectUrl && match) {
     redirect(`${redirectUrl}?msg=${encodeURIComponent("Partido guardado correctamente")}`);
+  } else if (match) {
+    // Fallback: redirigir a la página de admin del partido
+    redirect(`/admin/partidos/${match.matchNumber}?msg=${encodeURIComponent("Partido guardado correctamente")}`);
   }
 }
 
