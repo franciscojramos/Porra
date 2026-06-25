@@ -9,6 +9,9 @@ import { getMatchAwayName, getMatchHomeName } from "@/lib/matchDisplay";
 import { formatTeamDisplay } from "@/lib/teamFlags";
 import { MatchScoreboard } from "@/components/MatchScoreboard";
 import { PageShell, Card } from "@/components/ui";
+import { getSession } from "@/lib/auth";
+import { getSnapshotExportData } from "@/lib/snapshot";
+import { AdminSnapshotDownload } from "@/components/AdminSnapshotDownload";
 
 function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, string> = {
@@ -27,12 +30,15 @@ function StatusBadge({ status }: { status: string }) {
 export default async function InicioPage() {
   const data = await getHomeDashboard();
   const featured = data.featured;
+  const session = await getSession();
+  const snapshotData = session?.isAdmin ? await getSnapshotExportData() : null;
 
   return (
     <PageShell
       title="Actualidad del Mundial"
       subtitle="Resultados reales, partidos por día (hora de Madrid) y clasificaciones de grupos."
     >
+      {snapshotData && <AdminSnapshotDownload data={snapshotData} />}
       {featured && (
         <Card title={data.liveMatch ? "En juego ahora" : "Próximo partido"}>
           <div className="flex flex-wrap items-start justify-between gap-4">
