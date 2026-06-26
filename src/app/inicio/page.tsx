@@ -11,7 +11,7 @@ import { MatchScoreboard } from "@/components/MatchScoreboard";
 import { PageShell, Card } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 import { getSnapshotExportData } from "@/lib/snapshot";
-import { AdminSnapshotDownload } from "@/components/AdminSnapshotDownload";
+import { AdminInicioTools } from "@/components/AdminInicioTools";
 
 function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, string> = {
@@ -38,7 +38,7 @@ export default async function InicioPage() {
       title="Actualidad del Mundial"
       subtitle="Resultados reales, partidos por día (hora de Madrid) y clasificaciones de grupos."
     >
-      {snapshotData && <AdminSnapshotDownload data={snapshotData} />}
+      {snapshotData && <AdminInicioTools snapshotData={snapshotData} />}
       {featured && (
         <Card title={data.liveMatch ? "En juego ahora" : "Próximo partido"}>
           <div className="flex flex-wrap items-start justify-between gap-4">

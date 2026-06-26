@@ -77,6 +77,8 @@ model Match {
   ownGoalsAway String?
   /** Ganador en KO si el marcador es empate (90'/120'). */
   winnerTeamId String?
+  /** Si el admin guardó marcador/ganador a mano, la API no lo sobrescribe. */
+  scoreManuallyEdited Boolean @default(false)
 
   group       Group?             @relation(fields: [groupId], references: [id])
   predictions MatchPrediction[]

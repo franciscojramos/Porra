@@ -43,6 +43,8 @@ prisma/*.db
 prisma/*.db-journal
 prisma/*.db-shm
 prisma/*.db-wal
+exported-data*.json
+backup*.json
 
 # IDE / editor
 .idea/

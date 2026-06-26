@@ -43,7 +43,7 @@ export function AdminSnapshotDownload({ data }: Props) {
   }
 
   return (
-    <div className="mb-6">
+    <div>
       <button
         type="button"
         onClick={handleDownload}

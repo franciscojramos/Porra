@@ -13,28 +13,10 @@ import {
 import { prisma } from "@/lib/db";
 import { canEditPhase1Predictions, canEditPhase2Predictions } from "@/lib/predictions";
 import { syncFinalBracketFromKnockout } from "@/lib/knockoutBracket";
-import { syncOfficialKnockoutBracket } from "@/lib/officialKnockoutBracket";
-import { recalculateAllScores } from "@/lib/scoring";
+import { afterOfficialResultsUpdate } from "@/lib/afterOfficialUpdate";
+import { syncPendingMatchResults } from "@/lib/footballData/syncResults";
 import { isValidAwardPlayer } from "@/lib/players";
 import { AwardCategory } from "@prisma/client";
-
-function revalidateOfficialResults(matchNumber?: number) {
-  revalidatePath("/inicio");
-  revalidatePath("/grupos");
-  revalidatePath("/eliminatorias");
-  revalidatePath("/premios");
-  revalidatePath("/mis-pronosticos");
-  revalidatePath("/clasificacion");
-  revalidatePath("/reglas");
-  revalidatePath("/perfil");
-  revalidatePath("/jugadores");
-  revalidatePath("/admin");
-  revalidatePath("/admin/partidos");
-  if (matchNumber) {
-    revalidatePath(`/partidos/${matchNumber}`);
-    revalidatePath(`/admin/partidos/${matchNumber}`);
-  }
-}
 
 function revalidatePredictionPaths(userId?: string) {
   revalidatePath("/grupos");
@@ -622,15 +604,13 @@ export async function saveOfficialMatchAction(formData: FormData) {
       ownGoalsHome,
       ownGoalsAway,
       winnerTeamId,
+      scoreManuallyEdited: true,
     },
   });
 
   const match = await prisma.match.findUnique({ where: { id: matchId } });
 
-  await syncOfficialKnockoutBracket();
-
-  await recalculateAllScores();
-  revalidateOfficialResults(match?.matchNumber);
+  await afterOfficialResultsUpdate(match?.matchNumber);
 
   // Redirigir con mensaje de confirmación
   const redirectUrl = String(formData.get("redirectUrl") || "").trim();
@@ -663,9 +643,7 @@ export async function saveOfficialStandingAction(formData: FormData) {
     },
   });
 
-  await syncOfficialKnockoutBracket();
-  await recalculateAllScores();
-  revalidateOfficialResults();
+  await afterOfficialResultsUpdate();
 }
 
 export async function saveOfficialBestThirdAction(formData: FormData) {
@@ -677,9 +655,7 @@ export async function saveOfficialBestThirdAction(formData: FormData) {
     data: teamIds.map((teamId) => ({ teamId })),
   });
 
-  await syncOfficialKnockoutBracket();
-  await recalculateAllScores();
-  revalidateOfficialResults();
+  await afterOfficialResultsUpdate();
 }
 
 export async function saveOfficialAwardAction(formData: FormData) {
@@ -713,8 +689,7 @@ export async function saveOfficialAwardAction(formData: FormData) {
     },
   });
 
-  await recalculateAllScores();
-  revalidateOfficialResults();
+  await afterOfficialResultsUpdate();
 }
 
 export async function saveOfficialFinalBracketAction(formData: FormData) {
@@ -742,8 +717,7 @@ export async function saveOfficialFinalBracketAction(formData: FormData) {
     },
   });
 
-  await recalculateAllScores();
-  revalidateOfficialResults();
+  await afterOfficialResultsUpdate();
 }
 
 export async function updateScoringAction(formData: FormData) {
@@ -760,14 +734,36 @@ export async function updateScoringAction(formData: FormData) {
     }
   }
 
-  await recalculateAllScores();
-  revalidateOfficialResults();
+  await afterOfficialResultsUpdate();
 }
 
 export async function recalculateScoresAction() {
   await requireAdmin();
-  await recalculateAllScores();
-  revalidateOfficialResults();
+  await afterOfficialResultsUpdate();
+}
+
+export async function importPendingResultsAction() {
+  await requireAdmin();
+
+  try {
+    const results = await syncPendingMatchResults({ skipTimeCheck: true });
+    return {
+      imported: results.filter((r) => r.status === "imported").length,
+      pending: results.filter((r) => r.status === "pending").length,
+      skipped: results.filter((r) => r.status === "skipped").length,
+      errors: results.filter((r) => r.status === "error").length,
+      error: null as string | null,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Error al importar resultados";
+    return {
+      imported: 0,
+      pending: 0,
+      skipped: 0,
+      errors: 0,
+      error: message,
+    };
+  }
 }
 
 export async function changeUserPasswordAction(formData: FormData) {
