@@ -7,33 +7,32 @@ export function Toast() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const message = searchParams.get("msg");
-  const [show, setShow] = useState(false);
+  const [show, setShow] = useState(Boolean(message));
 
   useEffect(() => {
-    if (message) {
-      setShow(true);
-      const timer = setTimeout(() => {
-        setShow(false);
-        // Limpiar el query param después de mostrar el mensaje
-        setTimeout(() => {
-          const url = new URL(window.location.href);
-          url.searchParams.delete("msg");
-          router.replace(url.pathname + url.search, { scroll: false });
-        }, 300);
-      }, 3000);
-
-      return () => clearTimeout(timer);
+    if (!message) {
+      setShow(false);
+      return;
     }
+
+    setShow(true);
+    const hideTimer = setTimeout(() => setShow(false), 3000);
+    const cleanTimer = setTimeout(() => {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("msg");
+      router.replace(url.pathname + url.search, { scroll: false });
+    }, 3300);
+
+    return () => {
+      clearTimeout(hideTimer);
+      clearTimeout(cleanTimer);
+    };
   }, [message, router]);
 
-  if (!message) return null;
+  if (!message || !show) return null;
 
   return (
-    <div 
-      className={`fixed bottom-4 right-4 z-50 transition-all duration-300 ${
-        show ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
-      }`}
-    >
+    <div className="fixed bottom-4 right-4 z-50">
       <div className="rounded-lg bg-emerald-600 px-6 py-3 text-white shadow-lg">
         <p className="font-medium">✓ {message}</p>
       </div>

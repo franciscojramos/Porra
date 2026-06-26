@@ -23,6 +23,16 @@ async function getUser(request: NextRequest) {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // APIs protegidas por token (no sesión de usuario)
+  if (
+    pathname.startsWith("/api/cron/") ||
+    pathname === "/api/admin/recalculate-scores" ||
+    pathname.startsWith("/api/admin/setup")
+  ) {
+    return NextResponse.next();
+  }
+
   const user = await getUser(request);
   const isPublic = publicPaths.some((path) => pathname.startsWith(path));
 

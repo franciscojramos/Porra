@@ -13,7 +13,7 @@ import {
 import { prisma } from "@/lib/db";
 import { canEditPhase1Predictions, canEditPhase2Predictions } from "@/lib/predictions";
 import { syncFinalBracketFromKnockout } from "@/lib/knockoutBracket";
-import { afterOfficialResultsUpdate } from "@/lib/afterOfficialUpdate";
+import { afterOfficialResultsUpdate, revalidateOfficialResults, scheduleAfterOfficialResultsUpdate } from "@/lib/afterOfficialUpdate";
 import { syncPendingMatchResults } from "@/lib/footballData/syncResults";
 import { isValidAwardPlayer } from "@/lib/players";
 import { AwardCategory } from "@prisma/client";
@@ -610,15 +610,15 @@ export async function saveOfficialMatchAction(formData: FormData) {
 
   const match = await prisma.match.findUnique({ where: { id: matchId } });
 
-  await afterOfficialResultsUpdate(match?.matchNumber);
+  revalidateOfficialResults(match?.matchNumber);
+  scheduleAfterOfficialResultsUpdate(match?.matchNumber);
 
-  // Redirigir con mensaje de confirmación
+  const msg = encodeURIComponent("Partido guardado correctamente");
   const redirectUrl = String(formData.get("redirectUrl") || "").trim();
   if (redirectUrl && match) {
-    redirect(`${redirectUrl}?msg=${encodeURIComponent("Partido guardado correctamente")}`);
+    redirect(`${redirectUrl}?msg=${msg}`);
   } else if (match) {
-    // Fallback: redirigir a la página de admin del partido
-    redirect(`/admin/partidos/${match.matchNumber}?msg=${encodeURIComponent("Partido guardado correctamente")}`);
+    redirect(`/admin/partidos/${match.matchNumber}?msg=${msg}`);
   }
 }
 
