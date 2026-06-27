@@ -29,6 +29,9 @@ export function AdminImportResults() {
       ].filter(Boolean);
 
       setMessage(parts.join(" · ") || "Nada que importar ahora mismo.");
+      if (result.errorSamples?.length) {
+        setError(result.errorSamples.join(" · "));
+      }
       router.refresh();
     });
   }

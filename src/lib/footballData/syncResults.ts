@@ -1,7 +1,14 @@
 import { MatchStage } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { afterOfficialResultsUpdate } from "@/lib/afterOfficialUpdate";
-import { fetchFootballDataMatch } from "./client";
+import {
+  revalidateOfficialResults,
+  scheduleAfterOfficialResultsUpdate,
+} from "@/lib/afterOfficialUpdate";
+import {
+  fetchWorldCupMatches,
+  indexMatchesById,
+} from "./client";
+import type { FootballDataMatch } from "./types";
 import { getFootballDataMatchId } from "./matchIds";
 import { mapFootballDataScore } from "./mapScore";
 
@@ -32,15 +39,72 @@ function resolveWinnerTeamId(
   return null;
 }
 
+type AppliedImport = {
+  status: "imported";
+  matchNumber: number;
+  homeScore: number;
+  awayScore: number;
+  winnerTeamId: string | null;
+};
+
+function applyApiResult(
+  match: {
+    id: string;
+    matchNumber: number;
+    stage: MatchStage;
+    homeTeamId: string | null;
+    awayTeamId: string | null;
+  },
+  apiMatch: FootballDataMatch
+): Extract<SyncMatchResult, { status: "pending" }> | AppliedImport {
+  if (apiMatch.status !== "FINISHED") {
+    return {
+      status: "pending",
+      reason: `Estado API: ${apiMatch.status}`,
+      matchNumber: match.matchNumber,
+    };
+  }
+
+  const mapped = mapFootballDataScore(apiMatch.score, match.stage);
+  let winnerTeamId: string | null = null;
+
+  if (match.stage !== MatchStage.GROUP) {
+    if (mapped.homeScore !== mapped.awayScore) {
+      winnerTeamId = null;
+    } else {
+      winnerTeamId = resolveWinnerTeamId(
+        mapped.winnerSide,
+        match.homeTeamId,
+        match.awayTeamId
+      );
+      if (!winnerTeamId && match.homeTeamId && match.awayTeamId) {
+        return {
+          status: "pending",
+          reason: "Empate en API sin ganador resuelto (equipos KO pendientes)",
+          matchNumber: match.matchNumber,
+        };
+      }
+    }
+  }
+
+  return {
+    status: "imported",
+    matchNumber: match.matchNumber,
+    homeScore: mapped.homeScore,
+    awayScore: mapped.awayScore,
+    winnerTeamId,
+  };
+}
+
 export async function syncMatchResultFromApi(
   matchNumber: number,
-  options?: { skipTimeCheck?: boolean; skipRecalc?: boolean }
+  options?: {
+    skipTimeCheck?: boolean;
+    apiById?: Map<number, FootballDataMatch>;
+  }
 ): Promise<SyncMatchResult> {
   const match = await prisma.match.findUnique({
     where: { matchNumber },
-    include: {
-      group: true,
-    },
   });
 
   if (!match) {
@@ -70,55 +134,30 @@ export async function syncMatchResultFromApi(
   }
 
   try {
-    const apiMatch = await fetchFootballDataMatch(apiId);
+    const apiMatch = options?.apiById?.get(apiId);
     if (!apiMatch) {
       return { status: "error", matchNumber, error: "Partido no encontrado en API" };
     }
 
-    if (apiMatch.status !== "FINISHED") {
-      return { status: "pending", reason: `Estado API: ${apiMatch.status}`, matchNumber };
-    }
-
-    const mapped = mapFootballDataScore(apiMatch.score, match.stage);
-    let winnerTeamId: string | null = null;
-
-    if (match.stage !== MatchStage.GROUP) {
-      if (mapped.homeScore !== mapped.awayScore) {
-        winnerTeamId = null;
-      } else {
-        winnerTeamId = resolveWinnerTeamId(
-          mapped.winnerSide,
-          match.homeTeamId,
-          match.awayTeamId
-        );
-        if (!winnerTeamId && match.homeTeamId && match.awayTeamId) {
-          return {
-            status: "pending",
-            reason: "Empate en API sin ganador resuelto (equipos KO pendientes)",
-            matchNumber,
-          };
-        }
-      }
+    const applied = applyApiResult(match, apiMatch);
+    if (applied.status !== "imported") {
+      return applied;
     }
 
     await prisma.match.update({
       where: { id: match.id },
       data: {
-        homeScore: mapped.homeScore,
-        awayScore: mapped.awayScore,
-        winnerTeamId,
+        homeScore: applied.homeScore,
+        awayScore: applied.awayScore,
+        winnerTeamId: applied.winnerTeamId,
       },
     });
 
-    if (!options?.skipRecalc) {
-      await afterOfficialResultsUpdate(matchNumber);
-    }
-
     return {
       status: "imported",
-      matchNumber,
-      homeScore: mapped.homeScore,
-      awayScore: mapped.awayScore,
+      matchNumber: match.matchNumber,
+      homeScore: applied.homeScore,
+      awayScore: applied.awayScore,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -129,9 +168,12 @@ export async function syncMatchResultFromApi(
 export async function syncPendingMatchResults(options?: {
   skipTimeCheck?: boolean;
 }): Promise<SyncMatchResult[]> {
-  if (!process.env.FOOTBALL_DATA_TOKEN) {
+  if (!process.env.FOOTBALL_DATA_TOKEN?.trim()) {
     throw new Error("FOOTBALL_DATA_TOKEN no configurado");
   }
+
+  const apiMatches = await fetchWorldCupMatches();
+  const apiById = indexMatchesById(apiMatches);
 
   const now = new Date();
   const pending = await prisma.match.findMany({
@@ -155,14 +197,15 @@ export async function syncPendingMatchResults(options?: {
   for (const match of eligible) {
     const result = await syncMatchResultFromApi(match.matchNumber, {
       skipTimeCheck: options?.skipTimeCheck,
-      skipRecalc: true,
+      apiById,
     });
     results.push(result);
     if (result.status === "imported") importedAny = true;
   }
 
   if (importedAny) {
-    await afterOfficialResultsUpdate();
+    revalidateOfficialResults();
+    scheduleAfterOfficialResultsUpdate();
   }
 
   return results;

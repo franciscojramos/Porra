@@ -3,7 +3,7 @@ import type { FootballDataMatch } from "./types";
 const BASE_URL = "https://api.football-data.org/v4";
 
 function getToken() {
-  const token = process.env.FOOTBALL_DATA_TOKEN;
+  const token = process.env.FOOTBALL_DATA_TOKEN?.trim();
   if (!token) {
     throw new Error("FOOTBALL_DATA_TOKEN no configurado");
   }
@@ -13,7 +13,7 @@ function getToken() {
 export async function fetchFootballDataMatch(matchId: number): Promise<FootballDataMatch | null> {
   const res = await fetch(`${BASE_URL}/matches/${matchId}`, {
     headers: { "X-Auth-Token": getToken() },
-    next: { revalidate: 0 },
+    cache: "no-store",
   });
 
   if (res.status === 404) return null;
@@ -24,10 +24,11 @@ export async function fetchFootballDataMatch(matchId: number): Promise<FootballD
   return res.json() as Promise<FootballDataMatch>;
 }
 
-export async function fetchWorldCupMatches(season = 2026) {
+/** Una sola petición: todos los partidos del Mundial (evita rate limit 10/min). */
+export async function fetchWorldCupMatches(season = 2026): Promise<FootballDataMatch[]> {
   const res = await fetch(`${BASE_URL}/competitions/WC/matches?season=${season}`, {
     headers: { "X-Auth-Token": getToken() },
-    next: { revalidate: 0 },
+    cache: "no-store",
   });
 
   if (!res.ok) {
@@ -36,4 +37,8 @@ export async function fetchWorldCupMatches(season = 2026) {
 
   const data = (await res.json()) as { matches: FootballDataMatch[] };
   return data.matches ?? [];
+}
+
+export function indexMatchesById(matches: FootballDataMatch[]) {
+  return new Map(matches.map((m) => [m.id, m]));
 }

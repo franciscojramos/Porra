@@ -747,11 +747,13 @@ export async function importPendingResultsAction() {
 
   try {
     const results = await syncPendingMatchResults({ skipTimeCheck: true });
+    const errorResults = results.filter((r) => r.status === "error");
     return {
       imported: results.filter((r) => r.status === "imported").length,
       pending: results.filter((r) => r.status === "pending").length,
       skipped: results.filter((r) => r.status === "skipped").length,
-      errors: results.filter((r) => r.status === "error").length,
+      errors: errorResults.length,
+      errorSamples: errorResults.slice(0, 3).map((r) => `#${r.matchNumber}: ${r.error}`),
       error: null as string | null,
     };
   } catch (error) {
@@ -761,6 +763,7 @@ export async function importPendingResultsAction() {
       pending: 0,
       skipped: 0,
       errors: 0,
+      errorSamples: [] as string[],
       error: message,
     };
   }
