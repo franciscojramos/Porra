@@ -20,6 +20,8 @@ model User {
   phase1LockedAt       DateTime?
   phase2Locked         Boolean   @default(false)
   phase2LockedAt       DateTime?
+  finalBracketLocked   Boolean   @default(false)
+  finalBracketLockedAt DateTime?
   createdAt            DateTime  @default(now())
 
   matchPredictions     MatchPrediction[]

@@ -13,6 +13,7 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:scoring": "tsx prisma/sync-scoring.ts",
+    "db:sync-knockout": "tsx prisma/sync-knockout-matches.ts",
     "db:link-football-data": "tsx prisma/link-football-data.ts",
     "db:setup": "prisma migrate dev --name init && tsx prisma/seed.ts && tsx prisma/sync-scoring.ts",
     "vercel-build": "prisma generate && next build"

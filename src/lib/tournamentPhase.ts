@@ -1,12 +1,13 @@
 import { prisma } from "./db";
 import { formatMadridDateTime } from "./madridTime";
+import { isAnyKnockoutStageEditable } from "./knockoutRoundUnlock";
 
 export type TournamentPhaseState = {
   /** Admin: último partido de grupos con resultado + 8 terceros oficiales */
   phase2Open: boolean;
-  /** Hora Madrid ≥ saque inicial partido #73 */
+  /** Todas las rondas de eliminatorias han pasado su plazo de pronóstico */
   phase2Closed: boolean;
-  /** Ventana global para pronosticar eliminatorias */
+  /** Hay al menos una ronda de eliminatorias editable ahora mismo */
   knockoutWindowOpen: boolean;
   lastGroupFinished: boolean;
   officialThirdsReady: boolean;
@@ -25,7 +26,8 @@ export type TournamentPhaseState = {
 };
 
 export async function getTournamentPhaseState(): Promise<TournamentPhaseState> {
-  const [lastGroupMatch, firstKnockoutMatch, officialThirdCount] = await Promise.all([
+  const [lastGroupMatch, firstKnockoutMatch, officialThirdCount, knockoutWindowOpen] =
+    await Promise.all([
     prisma.match.findFirst({
       where: { stage: "GROUP" },
       orderBy: [{ kickoffAt: "desc" }, { matchNumber: "desc" }],
@@ -42,18 +44,15 @@ export async function getTournamentPhaseState(): Promise<TournamentPhaseState> {
       select: { matchNumber: true, kickoffAt: true },
     }),
     prisma.officialBestThird.count(),
+    isAnyKnockoutStageEditable(),
   ]);
 
   const lastGroupFinished =
     lastGroupMatch?.homeScore !== null && lastGroupMatch?.awayScore !== null;
   const officialThirdsReady = officialThirdCount === 8;
 
-  const now = Date.now();
-  const knockoutKickoff = firstKnockoutMatch?.kickoffAt?.getTime();
-  const phase2Closed = knockoutKickoff !== undefined && now >= knockoutKickoff;
-
   const phase2Open = lastGroupFinished && officialThirdsReady;
-  const knockoutWindowOpen = phase2Open && !phase2Closed;
+  const phase2Closed = phase2Open && !knockoutWindowOpen;
 
   return {
     phase2Open,

@@ -12,7 +12,8 @@ import {
 } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { canEditPhase1Predictions, canEditPhase2Predictions } from "@/lib/predictions";
-import { syncFinalBracketFromKnockout } from "@/lib/knockoutBracket";
+import { canEditKnockoutMatchStage } from "@/lib/knockoutRoundUnlock";
+import { MatchStage } from "@prisma/client";
 import { afterOfficialResultsUpdate, revalidateOfficialResults, scheduleAfterOfficialResultsUpdate } from "@/lib/afterOfficialUpdate";
 import { syncPendingMatchResults } from "@/lib/footballData/syncResults";
 import { isValidAwardPlayer } from "@/lib/players";
@@ -273,6 +274,11 @@ export async function saveMatchPredictionAction(formData: FormData) {
   }
 
   if (match.stage !== "GROUP") {
+    if (!ctx.adminPanel) {
+      const stageAllowed = await canEditKnockoutMatchStage(match.stage);
+      if (!stageAllowed) return;
+    }
+
     const { homeTeamId, awayTeamId } = match;
     if (homeScore === awayScore && homeTeamId && awayTeamId) {
       if (!advancesTeamId || ![homeTeamId, awayTeamId].includes(advancesTeamId)) {
@@ -286,10 +292,6 @@ export async function saveMatchPredictionAction(formData: FormData) {
     create: { userId, matchId, homeScore, awayScore, advancesTeamId },
     update: { homeScore, awayScore, advancesTeamId, points: 0 },
   });
-
-  if (match.stage !== "GROUP") {
-    await syncFinalBracketFromKnockout(userId);
-  }
 
   revalidatePredictionPaths(userId);
 }
@@ -322,8 +324,6 @@ export async function saveStandingPredictionAction(formData: FormData) {
     update: { firstTeamId, secondTeamId, thirdTeamId, fourthTeamId, points: 0 },
   });
 
-  await syncFinalBracketFromKnockout(userId).catch(() => null);
-
   revalidatePredictionPaths(userId);
 }
 
@@ -355,8 +355,6 @@ export async function saveBestThirdAction(formData: FormData) {
   await prisma.bestThirdPrediction.createMany({
     data: teamIds.map((teamId) => ({ userId, teamId })),
   });
-
-  await syncFinalBracketFromKnockout(userId).catch(() => null);
 
   revalidatePredictionPaths(userId);
 }
@@ -488,7 +486,6 @@ export async function saveGroupPhase1Action(formData: FormData) {
 
   await upsertGroupMatchPredictions(userId, groupId, formData);
   await upsertGroupStandingFromForm(userId, groupId, formData);
-  await syncFinalBracketFromKnockout(userId).catch(() => null);
   revalidatePredictionPaths(userId);
 }
 
@@ -505,7 +502,6 @@ export async function saveAllGruposPhase1Action(formData: FormData) {
   }
 
   await upsertBestThirdsFromForm(userId, formData);
-  await syncFinalBracketFromKnockout(userId).catch(() => null);
   revalidatePredictionPaths(userId);
 }
 
@@ -690,6 +686,66 @@ export async function saveOfficialAwardAction(formData: FormData) {
   });
 
   await afterOfficialResultsUpdate();
+}
+
+export async function saveUserFinalBracketAction(formData: FormData) {
+  const session = await requireSession();
+  const targetUserId = String(formData.get("userId") || "").trim();
+  const adminPanel = session.isAdmin && !!targetUserId;
+  const userId = adminPanel ? targetUserId : session.id;
+
+  if (!adminPanel) {
+    if (session.isAdmin) return;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { finalBracketLocked: true },
+    });
+    if (!user || user.finalBracketLocked) return;
+    const r32Open = await canEditKnockoutMatchStage(MatchStage.ROUND_32);
+    if (!r32Open) return;
+    if (formData.get("confirmed") !== "on") return;
+  }
+
+  const championTeamId = String(formData.get("championTeamId") || "").trim();
+  const runnerUpTeamId = String(formData.get("runnerUpTeamId") || "").trim();
+  const thirdPlaceTeamId = String(formData.get("thirdPlaceTeamId") || "").trim();
+  const fourthPlaceTeamId = String(formData.get("fourthPlaceTeamId") || "").trim();
+
+  const ids = [championTeamId, runnerUpTeamId, thirdPlaceTeamId, fourthPlaceTeamId];
+  if (ids.some((id) => !id) || new Set(ids).size !== 4) {
+    return;
+  }
+
+  await prisma.finalBracketPrediction.upsert({
+    where: { userId },
+    create: {
+      userId,
+      championTeamId,
+      runnerUpTeamId,
+      thirdPlaceTeamId,
+      fourthPlaceTeamId,
+      points: 0,
+    },
+    update: {
+      championTeamId,
+      runnerUpTeamId,
+      thirdPlaceTeamId,
+      fourthPlaceTeamId,
+      points: 0,
+    },
+  });
+
+  if (!adminPanel) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        finalBracketLocked: true,
+        finalBracketLockedAt: new Date(),
+      },
+    });
+  }
+
+  revalidatePredictionPaths(userId);
 }
 
 export async function saveOfficialFinalBracketAction(formData: FormData) {

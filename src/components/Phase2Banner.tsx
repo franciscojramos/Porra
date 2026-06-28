@@ -46,10 +46,10 @@ export function Phase2Banner({ phase }: { phase: TournamentPhaseState }) {
   if (phase.phase2Closed) {
     return (
       <div className="rounded-xl border border-amber-400/40 bg-amber-500/10 px-4 py-3">
-        <h3 className="font-semibold text-amber-100">Fase 2 · Plazo cerrado</h3>
+        <h3 className="font-semibold text-amber-100">Fase 2 · Sin rondas abiertas</h3>
         <p className="mt-2 text-sm text-amber-100">
-          El plazo para pronosticar eliminatorias terminó con el inicio del partido #
-          {phase.firstKnockoutMatch?.matchNumber} ({phase.closesAtLabel}, hora de Madrid).
+          Ahora mismo no hay ninguna ronda de eliminatorias abierta para pronosticar (plazo cerrado
+          o esperando resultados oficiales de la ronda anterior).
         </p>
       </div>
     );
@@ -59,15 +59,10 @@ export function Phase2Banner({ phase }: { phase: TournamentPhaseState }) {
     <div className="rounded-xl border border-emerald-400/40 bg-emerald-500/15 px-4 py-3">
       <h3 className="font-semibold text-emerald-100">Fase 2 · Eliminatorias abiertas</h3>
       <p className="mt-2 text-sm text-emerald-100">
-        Ya puedes pronosticar el cuadro real de eliminatorias. El cuadro de honor (campeón,
-        subcampeón, 3º y 4º) se calcula solo a partir de tus marcadores en la llave.
+        Empieza pronosticando los dieciseisavos. Octavos y rondas siguientes se irán
+        abriendo cuando el administrador publique todos los resultados oficiales de la ronda
+        anterior.
       </p>
-      {phase.firstKnockoutMatch?.kickoffAt && (
-        <p className="mt-2 text-xs text-amber-200">
-          Cierra automáticamente: {phase.closesAtLabel} (hora de Madrid), inicio del partido #
-          {phase.firstKnockoutMatch.matchNumber}.
-        </p>
-      )}
     </div>
   );
 }

@@ -288,47 +288,47 @@ export function UserProfilePredictions({ profile }: { profile: ProfileData }) {
         </Card>
       ))}
 
-      {knockoutData.derivedBracket && (
-        <Card title="Cuadro de honor (Fase 2 · automático)">
+      {knockoutData.finalBracket && (
+        <Card title="Cuadro de honor (Fase 2)">
           <ul className="space-y-1 text-sm text-emerald-100">
             <li>
               🏆 Campeón:{" "}
-              {knockoutData.derivedBracket.championTeamId
+              {knockoutData.finalBracket.championTeamId
                 ? formatTeamDisplay(
-                    teamMap[knockoutData.derivedBracket.championTeamId]!.name,
-                    teamMap[knockoutData.derivedBracket.championTeamId]!.code
+                    teamMap[knockoutData.finalBracket.championTeamId]!.name,
+                    teamMap[knockoutData.finalBracket.championTeamId]!.code
                   )
                 : "—"}
             </li>
             <li>
               🥈 Subcampeón:{" "}
-              {knockoutData.derivedBracket.runnerUpTeamId
+              {knockoutData.finalBracket.runnerUpTeamId
                 ? formatTeamDisplay(
-                    teamMap[knockoutData.derivedBracket.runnerUpTeamId]!.name,
-                    teamMap[knockoutData.derivedBracket.runnerUpTeamId]!.code
+                    teamMap[knockoutData.finalBracket.runnerUpTeamId]!.name,
+                    teamMap[knockoutData.finalBracket.runnerUpTeamId]!.code
                   )
                 : "—"}
             </li>
             <li>
               🥉 3º:{" "}
-              {knockoutData.derivedBracket.thirdPlaceTeamId
+              {knockoutData.finalBracket.thirdPlaceTeamId
                 ? formatTeamDisplay(
-                    teamMap[knockoutData.derivedBracket.thirdPlaceTeamId]!.name,
-                    teamMap[knockoutData.derivedBracket.thirdPlaceTeamId]!.code
+                    teamMap[knockoutData.finalBracket.thirdPlaceTeamId]!.name,
+                    teamMap[knockoutData.finalBracket.thirdPlaceTeamId]!.code
                   )
                 : "—"}
             </li>
             <li>
               4º:{" "}
-              {knockoutData.derivedBracket.fourthPlaceTeamId
+              {knockoutData.finalBracket.fourthPlaceTeamId
                 ? formatTeamDisplay(
-                    teamMap[knockoutData.derivedBracket.fourthPlaceTeamId]!.name,
-                    teamMap[knockoutData.derivedBracket.fourthPlaceTeamId]!.code
+                    teamMap[knockoutData.finalBracket.fourthPlaceTeamId]!.name,
+                    teamMap[knockoutData.finalBracket.fourthPlaceTeamId]!.code
                   )
                 : "—"}
             </li>
           </ul>
-          {knockoutData.finalBracket && knockoutData.finalBracket.points > 0 && (
+          {knockoutData.finalBracket.points > 0 && (
             <p className="mt-2 text-xs text-amber-200">
               +{knockoutData.finalBracket.points} pts
             </p>

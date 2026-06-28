@@ -1,5 +1,4 @@
 import { prisma } from "./db";
-import { deriveFinalBracketFromKnockout } from "./knockoutBracket";
 import { getTournamentPhaseState } from "./tournamentPhase";
 
 export async function isUserPhase1Locked(userId: string) {
@@ -73,6 +72,8 @@ export async function getUserLockStatus(userId: string) {
       phase1LockedAt: true,
       phase2Locked: true,
       phase2LockedAt: true,
+      finalBracketLocked: true,
+      finalBracketLockedAt: true,
       score: true,
     },
   });
@@ -91,17 +92,21 @@ export async function getCompletionStats(userId: string) {
       prisma.awardPrediction.count({ where: { userId } }),
     ]);
 
-  const [knockoutMatches, knockoutPredictions, phase] = await Promise.all([
+  const [knockoutMatches, knockoutPredictions, phase, finalBracket] = await Promise.all([
     prisma.match.count({ where: { stage: { not: "GROUP" } } }),
     prisma.matchPrediction.count({
       where: { userId, match: { stage: { not: "GROUP" } } },
     }),
     getTournamentPhaseState(),
+    prisma.finalBracketPrediction.findUnique({ where: { userId } }),
   ]);
 
-  const derived =
-    phase.phase2Open ? await deriveFinalBracketFromKnockout(userId) : null;
-  const bracketComplete = !phase.phase2Open || (derived?.complete ?? false);
+  const bracketComplete = !!(
+    finalBracket?.championTeamId &&
+    finalBracket?.runnerUpTeamId &&
+    finalBracket?.thirdPlaceTeamId &&
+    finalBracket?.fourthPlaceTeamId
+  );
 
   const knockoutPhaseActive = phase.knockoutWindowOpen;
 

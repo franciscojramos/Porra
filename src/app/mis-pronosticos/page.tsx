@@ -4,6 +4,8 @@ import { getAwardsData, getGroupsWithData, getKnockoutMatches } from "@/lib/data
 import { getOfficialResults } from "@/lib/official";
 import { LockBanner, DraftBanner } from "@/components/LockBanner";
 import { Phase2Banner } from "@/components/Phase2Banner";
+import { KnockoutRoundBanner } from "@/components/KnockoutRoundBanner";
+import { HonorBracketForm } from "@/components/HonorBracketForm";
 import { KnockoutBracketView } from "@/components/KnockoutBracketView";
 import { MisPronosticosTabs, type MisPronosticosTab } from "@/components/MisPronosticosTabs";
 import { Phase1AwardsForm } from "@/components/Phase1AwardsForm";
@@ -51,9 +53,18 @@ export default async function MisPronosticosPage({
     phase,
     locked: phase2Locked,
     editable: knockoutEditable,
+    editableStages,
+    stageEditStates,
+    officialWinners,
+    officialLosers,
     stageLabels,
     userStandings,
     userBestThirdIds,
+    finalBracket,
+    finalBracketLocked,
+    finalBracketLockedAt,
+    honorBracketEditable,
+    teams,
   } = knockout;
 
   const serializedMatches = matches.map((m) => ({
@@ -109,6 +120,9 @@ export default async function MisPronosticosPage({
               <LockBanner locked={phase2Locked} phase="phase2" />
               {!phase2Locked && knockoutEditable && <DraftBanner phase="phase2" />}
               <Phase2Banner phase={phase} />
+              {phase.phase2Open && (
+                <KnockoutRoundBanner phase={phase} stageEditStates={stageEditStates} />
+              )}
               {official.officialFinalBracket?.championTeamId && (
                 <Card title="Cuadro de honor oficial">
                   <p className="text-sm text-emerald-100">
@@ -118,7 +132,16 @@ export default async function MisPronosticosPage({
                 </Card>
               )}
               {phase.phase2Open ? (
-                <Card title="Tu llave de eliminatorias">
+                <>
+                  <HonorBracketForm
+                    teams={teams}
+                    teamMap={teamMap}
+                    finalBracket={finalBracket}
+                    editable={honorBracketEditable}
+                    locked={finalBracketLocked}
+                    lockedAt={finalBracketLockedAt}
+                  />
+                  <Card title="Tu llave de eliminatorias">
                   <p className="mb-6 text-sm text-emerald-100">
                     Edita los marcadores y observa cómo el ganador de cada partido avanza al
                     siguiente cruce.
@@ -130,9 +153,14 @@ export default async function MisPronosticosPage({
                     userStandings={userStandings}
                     userBestThirdIds={userBestThirdIds}
                     editable={knockoutEditable}
+                    editableStages={editableStages}
+                    stageEditStates={stageEditStates}
+                    officialWinners={officialWinners}
+                    officialLosers={officialLosers}
                     stageLabels={stageLabels}
                   />
                 </Card>
+                </>
               ) : (
                 <Card title="Llave pendiente">
                   <p className="text-sm text-emerald-200">

@@ -14,6 +14,7 @@ import { getMatchAwayName, getMatchHomeName, getMatchMeta } from "@/lib/matchDis
 import { AdminEditBanner } from "@/components/LockBanner";
 import { Phase1AwardsForm } from "@/components/Phase1AwardsForm";
 import { Phase1GruposForm } from "@/components/Phase1GruposForm";
+import { HonorBracketForm } from "@/components/HonorBracketForm";
 import { PageShell, Card, ScoreInput, SubmitButton } from "@/components/ui";
 import { MatchStage } from "@prisma/client";
 
@@ -146,6 +147,17 @@ export default async function AdminUserEditPage({
           editable
           userId={user.id}
           compact
+        />
+
+        <HonorBracketForm
+          teams={knockoutData.teams}
+          teamMap={knockoutData.teamMap}
+          finalBracket={knockoutData.finalBracket}
+          editable
+          locked={user.finalBracketLocked}
+          lockedAt={user.finalBracketLockedAt}
+          userId={user.id}
+          adminEdit
         />
 
         {stageOrder.map((stage) => {

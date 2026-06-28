@@ -1,6 +1,5 @@
 import { MatchStage } from "@prisma/client";
 import { prisma } from "./db";
-import { syncFinalBracketFromKnockout } from "./knockoutBracket";
 import { resolveKnockoutWinner } from "./knockoutBracketResolve";
 import { PARTICIPANT_USER_WHERE } from "./participants";
 import { getTournamentPhaseState } from "./tournamentPhase";
@@ -248,8 +247,6 @@ export async function recalculateAllScores() {
   const scoreBestThirds = phase.lastGroupFinished && phase.officialThirdsReady;
 
   for (const user of users) {
-    await syncFinalBracketFromKnockout(user.id).catch(() => null);
-
     let matchPoints = 0;
     let standingPoints = 0;
     let bestThirdPoints = 0;

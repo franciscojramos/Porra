@@ -4,13 +4,14 @@ import { useCallback, useMemo, useRef, useState, useTransition } from "react";
 import { MatchStage } from "@prisma/client";
 import { saveMatchPredictionAction } from "@/lib/actions";
 import {
-  computeBracketState,
+  computeProgressiveBracketState,
   teamDisplayName,
   type KnockoutMatchInput,
   type PredictionInput,
   type StandingByGroup,
   type TeamInfo,
 } from "@/lib/knockoutBracketResolve";
+import type { KnockoutStageEditState } from "@/lib/knockoutRoundUnlock";
 
 type SerializedMatch = KnockoutMatchInput & {
   kickoffAt: string | null;
@@ -24,6 +25,10 @@ type Props = {
   userStandings: StandingByGroup;
   userBestThirdIds: string[];
   editable: boolean;
+  editableStages: string[];
+  stageEditStates: KnockoutStageEditState[];
+  officialWinners: Record<number, string>;
+  officialLosers: Record<number, string>;
   stageLabels: Record<string, string>;
 };
 
@@ -117,16 +122,18 @@ function BracketMatchCard({
   teamMap,
   prediction,
   editable,
+  lockedReason,
   destination,
   onScoresChange,
   onAdvancesChange,
   saving,
 }: {
   match: SerializedMatch;
-  slot: ReturnType<typeof computeBracketState>["slots"][string];
+  slot: ReturnType<typeof computeProgressiveBracketState>["slots"][string];
   teamMap: Record<string, TeamInfo>;
   prediction: PredictionInput;
   editable: boolean;
+  lockedReason?: string | null;
   destination: { matchNumber: number; side: "home" | "away" } | undefined;
   onScoresChange: (home: number, away: number) => void;
   onAdvancesChange: (teamId: string) => void;
@@ -168,7 +175,9 @@ function BracketMatchCard({
           <span className="text-[10px] text-amber-300">Elige ganador</span>
         )}
         {!slot.isReady && (
-          <span className="text-[10px] text-emerald-500">Esperando…</span>
+          <span className="text-[10px] text-emerald-500">
+            {lockedReason ?? "Esperando…"}
+          </span>
         )}
       </div>
 
@@ -241,8 +250,30 @@ export function KnockoutBracketView({
   userStandings,
   userBestThirdIds,
   editable,
+  editableStages,
+  stageEditStates,
+  officialWinners,
+  officialLosers,
   stageLabels,
 }: Props) {
+  const editableStageSet = useMemo(() => new Set(editableStages), [editableStages]);
+  const lockedReasonByStage = useMemo(
+    () => Object.fromEntries(stageEditStates.map((s) => [s.stage, s.lockedReason])),
+    [stageEditStates]
+  );
+  const officialWinnersMap = useMemo(
+    () => new Map(Object.entries(officialWinners).map(([k, v]) => [Number(k), v])),
+    [officialWinners]
+  );
+  const officialLosersMap = useMemo(
+    () => new Map(Object.entries(officialLosers).map(([k, v]) => [Number(k), v])),
+    [officialLosers]
+  );
+
+  const isMatchEditable = useCallback(
+    (stage: string) => editable && editableStageSet.has(stage),
+    [editable, editableStageSet]
+  );
   const [view, setView] = useState<"bracket" | "list">("bracket");
   const [predictions, setPredictions] = useState<Record<string, PredictionInput>>(() => {
     const base: Record<string, PredictionInput> = {};
@@ -260,8 +291,23 @@ export function KnockoutBracketView({
   const winnerDestinations = useMemo(() => buildWinnerDestinations(matches), [matches]);
 
   const bracketState = useMemo(
-    () => computeBracketState(matches, predictions, userStandings, userBestThirdIds),
-    [matches, predictions, userStandings, userBestThirdIds]
+    () =>
+      computeProgressiveBracketState(
+        matches,
+        predictions,
+        userStandings,
+        userBestThirdIds,
+        officialWinnersMap,
+        officialLosersMap
+      ),
+    [
+      matches,
+      predictions,
+      userStandings,
+      userBestThirdIds,
+      officialWinnersMap,
+      officialLosersMap,
+    ]
   );
 
   const matchesByStage = useMemo(() => {
@@ -310,13 +356,14 @@ export function KnockoutBracketView({
         const advancesTeamId =
           homeScore === awayScore ? current.advancesTeamId ?? null : null;
         const next = { ...prev, [matchId]: { homeScore, awayScore, advancesTeamId } };
-        if (editable) {
+        const match = matches.find((m) => m.id === matchId);
+        if (match && isMatchEditable(match.stage)) {
           persistPrediction(matchId, homeScore, awayScore, advancesTeamId);
         }
         return next;
       });
     },
-    [editable, persistPrediction]
+    [editable, persistPrediction, matches, isMatchEditable]
   );
 
   const handleAdvancesChange = useCallback(
@@ -324,7 +371,8 @@ export function KnockoutBracketView({
       setPredictions((prev) => {
         const current = prev[matchId] ?? { homeScore: 0, awayScore: 0, advancesTeamId: null };
         const next = { ...prev, [matchId]: { ...current, advancesTeamId: teamId } };
-        if (editable) {
+        const match = matches.find((m) => m.id === matchId);
+        if (match && isMatchEditable(match.stage)) {
           persistPrediction(
             matchId,
             current.homeScore,
@@ -335,15 +383,8 @@ export function KnockoutBracketView({
         return next;
       });
     },
-    [editable, persistPrediction]
+    [editable, persistPrediction, matches, isMatchEditable]
   );
-
-  const honorNames = {
-    champion: teamDisplayName(bracketState.championTeamId, null, teamMap),
-    runnerUp: teamDisplayName(bracketState.runnerUpTeamId, null, teamMap),
-    third: teamDisplayName(bracketState.thirdPlaceTeamId, null, teamMap),
-    fourth: teamDisplayName(bracketState.fourthPlaceTeamId, null, teamMap),
-  };
 
   return (
     <div className="space-y-6">
@@ -377,25 +418,6 @@ export function KnockoutBracketView({
         )}
       </div>
 
-      <div className="grid gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div>
-          <p className="text-[10px] uppercase text-emerald-400">Campeón</p>
-          <p className="truncate text-sm font-semibold text-white">{honorNames.champion}</p>
-        </div>
-        <div>
-          <p className="text-[10px] uppercase text-emerald-400">Subcampeón</p>
-          <p className="truncate text-sm font-semibold text-emerald-100">{honorNames.runnerUp}</p>
-        </div>
-        <div>
-          <p className="text-[10px] uppercase text-emerald-400">3º puesto</p>
-          <p className="truncate text-sm font-semibold text-emerald-100">{honorNames.third}</p>
-        </div>
-        <div>
-          <p className="text-[10px] uppercase text-emerald-400">4º puesto</p>
-          <p className="truncate text-sm font-semibold text-emerald-100">{honorNames.fourth}</p>
-        </div>
-      </div>
-
       {view === "bracket" ? (
         <div className="relative -mx-4 overflow-x-auto px-4 pb-4 lg:-mx-8 lg:px-8">
           <div className="flex min-w-max gap-3 lg:gap-5">
@@ -410,6 +432,9 @@ export function KnockoutBracketView({
                     <p className="text-xs font-bold uppercase tracking-wider text-emerald-300">
                       {stageLabels[round.stage] ?? round.short}
                     </p>
+                    {!editableStageSet.has(round.stage) && (
+                      <p className="mt-0.5 text-[10px] text-emerald-500">Bloqueada</p>
+                    )}
                   </div>
                   <div className="flex flex-1 flex-col justify-around gap-0">
                     {stageMatches.map((match) => {
@@ -420,6 +445,7 @@ export function KnockoutBracketView({
                         advancesTeamId: null,
                       };
                       const dest = winnerDestinations.get(match.matchNumber);
+                      const matchEditable = isMatchEditable(match.stage);
 
                       return (
                         <div
@@ -439,7 +465,8 @@ export function KnockoutBracketView({
                               slot={slot}
                               teamMap={teamMap}
                               prediction={pred}
-                              editable={editable}
+                              editable={matchEditable}
+                              lockedReason={lockedReasonByStage[match.stage]}
                               destination={dest}
                               saving={savingIds.has(match.id)}
                               onScoresChange={(h, a) => handleScoresChange(match.id, h, a)}
@@ -470,9 +497,19 @@ export function KnockoutBracketView({
 
             return (
               <section key={round.stage}>
-                <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-emerald-300">
+                <h3 className="mb-1 text-sm font-semibold uppercase tracking-wide text-emerald-300">
                   {stageLabels[round.stage]}
+                  {!editableStageSet.has(round.stage) && (
+                    <span className="ml-2 text-xs font-normal normal-case text-emerald-500">
+                      · bloqueada
+                    </span>
+                  )}
                 </h3>
+                {!editableStageSet.has(round.stage) && lockedReasonByStage[round.stage] && (
+                  <p className="mb-3 text-xs text-emerald-500">
+                    {lockedReasonByStage[round.stage]}
+                  </p>
+                )}
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {stageMatches.map((match) => {
                     const slot = bracketState.slots[match.id];
@@ -482,6 +519,7 @@ export function KnockoutBracketView({
                       advancesTeamId: null,
                     };
                     const dest = winnerDestinations.get(match.matchNumber);
+                    const matchEditable = isMatchEditable(match.stage);
 
                     return (
                       <BracketMatchCard
@@ -490,7 +528,8 @@ export function KnockoutBracketView({
                         slot={slot}
                         teamMap={teamMap}
                         prediction={pred}
-                        editable={editable}
+                        editable={matchEditable}
+                        lockedReason={lockedReasonByStage[match.stage]}
                         destination={dest}
                         saving={savingIds.has(match.id)}
                         onScoresChange={(h, a) => handleScoresChange(match.id, h, a)}
@@ -510,7 +549,8 @@ export function KnockoutBracketView({
       {!bracketState.complete && editable && (
         <p className="text-xs text-amber-200">
           Marcador sobre 90&apos; o 120&apos; (antes de penaltis). Si empatas, elige quién pasa.
-          Necesitas Fase 1 guardada para resolver los dieciseisavos.
+          Necesitas Fase 1 guardada para los dieciseisavos. Octavos y rondas siguientes usan los
+          equipos que hayan pasado oficialmente en la ronda anterior.
         </p>
       )}
     </div>

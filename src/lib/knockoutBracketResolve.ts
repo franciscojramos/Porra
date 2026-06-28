@@ -212,6 +212,103 @@ export function computeBracketState(
   };
 }
 
+/** R32 con equipos del usuario; rondas siguientes con cruces según resultados oficiales previos. */
+export function computeProgressiveBracketState(
+  matches: KnockoutMatchInput[],
+  predictions: Record<string, PredictionInput | undefined>,
+  standings: StandingByGroup,
+  bestThirdIds: string[],
+  officialWinners: Map<number, string>,
+  officialLosers: Map<number, string>
+): BracketState {
+  const bestThirdSet = new Set(bestThirdIds);
+  const userWinners = new Map<number, string>();
+  const userLosers = new Map<number, string>();
+  const slots: Record<string, ResolvedMatchSlot> = {};
+
+  const sorted = [...matches].sort((a, b) => a.matchNumber - b.matchNumber);
+
+  for (const match of sorted) {
+    const useOfficialTree = match.stage !== "ROUND_32";
+    const teamWinners = useOfficialTree ? officialWinners : userWinners;
+    const teamLosers = useOfficialTree ? officialLosers : userLosers;
+
+    const homeTeamId = resolveSlotLabel(
+      match.homeLabel,
+      standings,
+      bestThirdSet,
+      teamWinners,
+      teamLosers
+    );
+    const awayTeamId = resolveSlotLabel(
+      match.awayLabel,
+      standings,
+      bestThirdSet,
+      teamWinners,
+      teamLosers
+    );
+
+    const pred = predictions[match.id];
+    const hasPrediction = pred !== undefined;
+    let winnerTeamId: string | null = null;
+    let loserTeamId: string | null = null;
+    let isTie = false;
+
+    if (pred && homeTeamId && awayTeamId) {
+      winnerTeamId = resolveKnockoutWinner(
+        pred.homeScore,
+        pred.awayScore,
+        homeTeamId,
+        awayTeamId,
+        pred.advancesTeamId
+      );
+      if (winnerTeamId === homeTeamId) {
+        loserTeamId = awayTeamId;
+      } else if (winnerTeamId === awayTeamId) {
+        loserTeamId = homeTeamId;
+      } else if (pred.homeScore === pred.awayScore) {
+        isTie = true;
+      }
+
+      if (winnerTeamId && loserTeamId) {
+        userWinners.set(match.matchNumber, winnerTeamId);
+        userLosers.set(match.matchNumber, loserTeamId);
+      }
+    }
+
+    slots[match.id] = {
+      matchId: match.id,
+      matchNumber: match.matchNumber,
+      stage: match.stage,
+      homeTeamId,
+      awayTeamId,
+      homeLabel: match.homeLabel ?? null,
+      awayLabel: match.awayLabel ?? null,
+      winnerTeamId,
+      loserTeamId,
+      isTie,
+      isReady: !!(homeTeamId && awayTeamId),
+      hasPrediction,
+    };
+  }
+
+  const championTeamId = userWinners.get(104) ?? null;
+  const runnerUpTeamId = userLosers.get(104) ?? null;
+  const thirdPlaceTeamId = userWinners.get(103) ?? null;
+  const fourthPlaceTeamId = userLosers.get(103) ?? null;
+
+  return {
+    slots,
+    winners: Object.fromEntries(userWinners),
+    losers: Object.fromEntries(userLosers),
+    championTeamId,
+    runnerUpTeamId,
+    thirdPlaceTeamId,
+    fourthPlaceTeamId,
+    complete: !!(championTeamId && runnerUpTeamId && thirdPlaceTeamId && fourthPlaceTeamId),
+  };
+}
+
 export function teamDisplayName(
   teamId: string | null,
   label: string | null,

@@ -1,7 +1,11 @@
 import { prisma } from "./db";
 import { getSession } from "./auth";
 import { getOfficialResults } from "./official";
-import { deriveFinalBracketFromKnockout } from "./knockoutBracket";
+import {
+  buildOfficialKnockoutWinnersLosers,
+  canEditKnockoutMatchStage,
+  getKnockoutStageEditStates,
+} from "./knockoutRoundUnlock";
 import { PARTICIPANT_USER_WHERE } from "./participants";
 import { getTournamentPhaseState } from "./tournamentPhase";
 import { MatchStage } from "@prisma/client";
@@ -120,14 +124,29 @@ export async function getKnockoutMatches(
   const user = userId
     ? await prisma.user.findUnique({
         where: { id: userId },
-        select: { phase1Locked: true, phase2Locked: true },
+        select: {
+          phase1Locked: true,
+          phase2Locked: true,
+          finalBracketLocked: true,
+          finalBracketLockedAt: true,
+        },
       })
     : null;
 
   const phase1Locked = user?.phase1Locked ?? false;
   const phase2Locked = user?.phase2Locked ?? false;
+  const finalBracketLocked = user?.finalBracketLocked ?? false;
+  const finalBracketLockedAt = user?.finalBracketLockedAt ?? null;
   const phase = await getTournamentPhaseState();
   const adminPanel = !!(options?.adminEdit && session?.isAdmin);
+  const [stageEditStates, officialTree, r32Editable] = await Promise.all([
+    getKnockoutStageEditStates({ adminPanel }),
+    buildOfficialKnockoutWinnersLosers(),
+    canEditKnockoutMatchStage(MatchStage.ROUND_32, { adminPanel }),
+  ]);
+  const editableStages = new Set(
+    stageEditStates.filter((s) => s.editable).map((s) => s.stage)
+  );
   const knockoutEditable =
     !!session &&
     (adminPanel
@@ -135,12 +154,18 @@ export async function getKnockoutMatches(
       : !session.isAdmin &&
         session.id === userId &&
         !phase2Locked &&
-        phase.knockoutWindowOpen);
+        editableStages.size > 0);
 
-  const derivedBracket =
-    userId && phase.phase2Open
-      ? await deriveFinalBracketFromKnockout(userId)
-      : null;
+  const honorBracketEditable =
+    !!session &&
+    (adminPanel
+      ? true
+      : !session.isAdmin &&
+        session.id === userId &&
+        !finalBracketLocked &&
+        r32Editable);
+
+  const derivedBracket = null;
 
   const [standingRows, bestThirdRows] = userId
     ? await Promise.all([
@@ -180,6 +205,10 @@ export async function getKnockoutMatches(
     phase1Locked,
     phase2Locked,
     editable: knockoutEditable,
+    editableStages: Array.from(editableStages),
+    stageEditStates,
+    officialWinners: Object.fromEntries(officialTree.winners),
+    officialLosers: Object.fromEntries(officialTree.losers),
     phase,
     predictions: Object.fromEntries(predictions.map((p) => [p.matchId, p])),
     finalBracket,
@@ -187,6 +216,10 @@ export async function getKnockoutMatches(
     stageLabels,
     userStandings,
     userBestThirdIds,
+    finalBracketLocked,
+    finalBracketLockedAt,
+    honorBracketEditable,
+    teams: teams.map((t) => ({ id: t.id, name: t.name, code: t.code })),
   };
 }
 
@@ -237,6 +270,8 @@ export async function getAllUsers() {
       phase1LockedAt: true,
       phase2Locked: true,
       phase2LockedAt: true,
+      finalBracketLocked: true,
+      finalBracketLockedAt: true,
       score: true,
     },
     orderBy: { displayName: "asc" },
@@ -258,6 +293,8 @@ export async function getUserProfile(
       phase1LockedAt: true,
       phase2Locked: true,
       phase2LockedAt: true,
+      finalBracketLocked: true,
+      finalBracketLockedAt: true,
       score: true,
     },
   });

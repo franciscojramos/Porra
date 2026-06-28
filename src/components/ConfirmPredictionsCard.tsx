@@ -62,20 +62,21 @@ export async function ConfirmPhase2Card({ userId }: { userId: string }) {
 
   return (
     <Card title="Enviar Fase 2 (eliminatorias)">
-      <p className="mb-4 text-sm text-emerald-100">
-        Cuando envíes la <strong>Fase 2</strong>, no podrás cambiar tus marcadores de
-        eliminatorias. El cuadro de honor se calcula solo a partir de tu llave.
-      </p>
+        <p className="mb-4 text-sm text-emerald-100">
+          Cuando envíes la <strong>Fase 2</strong>, no podrás cambiar tus marcadores de
+          eliminatorias. El cuadro de honor se elige aparte durante los dieciseisavos y queda
+          bloqueado al guardarlo.
+        </p>
       <ul className="mb-4 space-y-1 text-sm text-emerald-200">
         <li>
           Eliminatorias: {stats.knockoutPredictions}/{stats.knockoutMatches}
         </li>
-        <li>Cuadro de honor: {stats.bracketComplete ? "✓ (auto)" : "pendiente"}</li>
+        <li>Cuadro de honor: {stats.bracketComplete ? "✓" : "pendiente (solo en dieciseisavos)"}</li>
       </ul>
       {phase.firstKnockoutMatch?.kickoffAt && (
         <p className="mb-4 text-xs text-amber-200">
-          Cierre automático al inicio del partido #{phase.firstKnockoutMatch.matchNumber} (
-          {phase.closesAtLabel}, hora Madrid).
+          Cada ronda cierra al inicio de su primer partido. Los octavos se abrirán cuando el
+          administrador publique todos los resultados oficiales de dieciseisavos.
         </p>
       )}
       {!stats.phase2Complete && (
