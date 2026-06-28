@@ -5,7 +5,6 @@ import {
   unlockUserPhase1Action,
   unlockUserPhase2Action,
   completeUserPhase1Action,
-  completeUserPhase2Action,
   changeUserPasswordAction,
 } from "@/lib/actions";
 import { getUserProfile } from "@/lib/data";
@@ -123,24 +122,14 @@ export default async function AdminUserEditPage({
             </button>
           </form>
         )}
-        {!user.phase2Locked ? (
-          <form action={completeUserPhase2Action}>
-            <input type="hidden" name="userId" value={user.id} />
-            <button
-              type="submit"
-              className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-emerald-950"
-            >
-              Enviar Fase 2
-            </button>
-          </form>
-        ) : (
+        {user.phase2Locked && (
           <form action={unlockUserPhase2Action}>
             <input type="hidden" name="userId" value={user.id} />
             <button
               type="submit"
               className="rounded-xl border border-amber-400 px-4 py-2 text-sm text-amber-200"
             >
-              Desbloquear Fase 2
+              Desbloquear Fase 2 (antiguo)
             </button>
           </form>
         )}
@@ -148,8 +137,9 @@ export default async function AdminUserEditPage({
 
       {(user.phase1Locked || user.phase2Locked) && (
         <div className="mb-6 rounded-xl border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-          Estado: Fase 1 {user.phase1Locked ? "enviada" : "borrador"} · Fase 2{" "}
-          {user.phase2Locked ? "enviada" : "borrador"}. Solo tú (admin) puedes editar desde aquí.
+          Estado: Fase 1 {user.phase1Locked ? "enviada" : "borrador"} · Fase 2 por ronda
+          {user.phase2Locked ? " (bloqueo manual antiguo activo)" : ""}. Solo tú (admin) puedes
+          editar desde aquí.
         </div>
       )}
 

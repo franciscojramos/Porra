@@ -138,13 +138,17 @@ export function UserProfilePredictions({ profile }: { profile: ProfileData }) {
             )}
             {user.phase2Locked ? (
               <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-emerald-200">
-                Fase 2 enviada
+                Fase 2 enviada (antiguo)
                 {user.phase2LockedAt &&
                   ` · ${user.phase2LockedAt.toLocaleDateString("es-ES")}`}
               </span>
+            ) : user.phase1Locked ? (
+              <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-emerald-200">
+                Fase 2 · por ronda
+              </span>
             ) : (
               <span className="rounded-full bg-amber-500/20 px-3 py-1 text-amber-200">
-                Fase 2 borrador
+                Fase 2 pendiente (envía Fase 1)
               </span>
             )}
           </div>
@@ -381,10 +385,8 @@ export function UserProfilePredictions({ profile }: { profile: ProfileData }) {
 
 export function ProfileLinks({
   phase1Locked,
-  phase2Locked,
 }: {
   phase1Locked: boolean;
-  phase2Locked: boolean;
 }) {
   return (
     <Card title="Rellena tus pronósticos">
@@ -405,7 +407,7 @@ export function ProfileLinks({
             </Link>
           </>
         )}
-        {!phase2Locked && (
+        {phase1Locked && (
           <Link
             href="/mis-pronosticos?tab=eliminatorias"
             className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-emerald-950"

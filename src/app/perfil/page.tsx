@@ -5,7 +5,7 @@ import { PageShell } from "@/components/ui";
 import { DraftBanner, LockBanner } from "@/components/LockBanner";
 import {
   ConfirmPhase1Card,
-  ConfirmPhase2Card,
+  Phase2InfoCard,
 } from "@/components/ConfirmPredictionsCard";
 import {
   ProfileLinks,
@@ -30,7 +30,7 @@ export default async function PerfilPage() {
       {!user.phase1Locked ? (
         <>
           <DraftBanner phase="phase1" />
-          <ProfileLinks phase1Locked={false} phase2Locked={user.phase2Locked} />
+          <ProfileLinks phase1Locked={false} />
           <div className="mt-6">
             <ConfirmPhase1Card userId={session.id} />
           </div>
@@ -39,21 +39,10 @@ export default async function PerfilPage() {
         <LockBanner locked phase="phase1" />
       )}
 
-      {user.phase1Locked && !user.phase2Locked && (
-        <>
-          <div className="mt-6">
-            <DraftBanner phase="phase2" />
-            <ProfileLinks phase1Locked phase2Locked={false} />
-          </div>
-          <div className="mt-6">
-            <ConfirmPhase2Card userId={session.id} />
-          </div>
-        </>
-      )}
-
-      {user.phase2Locked && (
-        <div className="mt-6">
-          <LockBanner locked phase="phase2" />
+      {user.phase1Locked && (
+        <div className="mt-6 space-y-4">
+          <ProfileLinks phase1Locked />
+          <Phase2InfoCard userId={session.id} />
         </div>
       )}
 

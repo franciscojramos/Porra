@@ -51,7 +51,6 @@ export default async function MisPronosticosPage({
     teamMap,
     predictions,
     phase,
-    locked: phase2Locked,
     editable: knockoutEditable,
     editableStages,
     stageEditStates,
@@ -119,8 +118,6 @@ export default async function MisPronosticosPage({
           ),
           eliminatorias: (
             <div className="space-y-4">
-              <LockBanner locked={phase2Locked} phase="phase2" />
-              {!phase2Locked && knockoutEditable && <DraftBanner phase="phase2" />}
               <Phase2Banner phase={phase} />
               {phase.phase2Open && (
                 <KnockoutRoundBanner phase={phase} stageEditStates={stageEditStates} />

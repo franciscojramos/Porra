@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   createUserAction,
   completeUserPhase1Action,
-  completeUserPhase2Action,
   unlockUserPhase1Action,
   unlockUserPhase2Action,
   saveOfficialStandingAction,
@@ -100,7 +99,7 @@ export default async function AdminPage() {
                   {user.displayName} ({user.username})
                   {user.isAdmin ? " · admin" : ""}
                   {user.phase1Locked ? " · F1 ✓" : " · F1 …"}
-                  {user.phase2Locked ? " · F2 ✓" : " · F2 …"}
+                  {user.phase2Locked ? " · F2 bloq." : ""}
                 </span>
                 <div className="flex flex-wrap gap-3">
                   {!user.isAdmin && (
@@ -116,14 +115,6 @@ export default async function AdminPage() {
                       <input type="hidden" name="userId" value={user.id} />
                       <button type="submit" className="text-emerald-300 hover:underline">
                         Enviar F1
-                      </button>
-                    </form>
-                  )}
-                  {!user.isAdmin && user.phase1Locked && !user.phase2Locked && (
-                    <form action={completeUserPhase2Action}>
-                      <input type="hidden" name="userId" value={user.id} />
-                      <button type="submit" className="text-emerald-300 hover:underline">
-                        Enviar F2
                       </button>
                     </form>
                   )}

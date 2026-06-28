@@ -38,7 +38,6 @@ export async function canEditPhase2Predictions(
   if (actingIsAdmin && options?.adminPanel) return true;
   if (actingIsAdmin) return false;
   if (targetUserId !== actingUserId) return false;
-  if (await isUserPhase2Locked(targetUserId)) return false;
   const phase = await getTournamentPhaseState();
   return phase.knockoutWindowOpen;
 }

@@ -1,12 +1,15 @@
 export function DraftBanner({ phase = "phase1" }: { phase?: "phase1" | "phase2" }) {
   const label =
     phase === "phase2"
-      ? "Fase 2 en borrador. Puedes rellenar y cambiar tus eliminatorias."
+      ? "Rellena tus eliminatorias y pulsa Guardar todo. Cada ronda cierra al inicio de su partido."
       : "Fase 1 en borrador. Puedes rellenar y cambiar grupos, terceros y premios.";
 
   return (
     <div className="mb-6 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-emerald-100">
-      <strong>{label}</strong> Cuando termines, envíala desde <strong>Mi perfil</strong>.
+      <strong>{label}</strong>
+      {phase === "phase1" && (
+        <> Cuando termines, envíala desde <strong>Mi perfil</strong>.</>
+      )}
     </div>
   );
 }

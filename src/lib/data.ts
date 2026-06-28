@@ -153,7 +153,6 @@ export async function getKnockoutMatches(
       ? true
       : !session.isAdmin &&
         session.id === userId &&
-        !phase2Locked &&
         editableStages.size > 0);
 
   const honorBracketEditable =
