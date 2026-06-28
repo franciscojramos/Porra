@@ -167,12 +167,21 @@ export async function getKnockoutMatches(
 
   const derivedBracket = null;
 
-  const [standingRows, bestThirdRows] = userId
-    ? await Promise.all([
-        prisma.groupStandingPrediction.findMany({ where: { userId } }),
-        prisma.bestThirdPrediction.findMany({ where: { userId } }),
-      ])
-    : [[], []];
+  const [
+    standingRows,
+    bestThirdRows,
+    officialStandingRows,
+    officialThirdRows,
+  ] = await Promise.all([
+    userId
+      ? prisma.groupStandingPrediction.findMany({ where: { userId } })
+      : Promise.resolve([]),
+    userId
+      ? prisma.bestThirdPrediction.findMany({ where: { userId } })
+      : Promise.resolve([]),
+    prisma.officialGroupStanding.findMany(),
+    prisma.officialBestThird.findMany(),
+  ]);
 
   const userStandings = Object.fromEntries(
     standingRows.map((s) => [
@@ -186,6 +195,19 @@ export async function getKnockoutMatches(
     ])
   );
   const userBestThirdIds = bestThirdRows.map((t) => t.teamId);
+
+  const officialStandings = Object.fromEntries(
+    officialStandingRows.map((s) => [
+      s.groupId,
+      {
+        firstTeamId: s.firstTeamId,
+        secondTeamId: s.secondTeamId,
+        thirdTeamId: s.thirdTeamId,
+        fourthTeamId: s.fourthTeamId,
+      },
+    ])
+  );
+  const officialBestThirdIds = officialThirdRows.map((t) => t.teamId);
 
   const stageLabels: Record<MatchStage, string> = {
     GROUP: "Grupos",
@@ -216,6 +238,8 @@ export async function getKnockoutMatches(
     stageLabels,
     userStandings,
     userBestThirdIds,
+    officialStandings,
+    officialBestThirdIds,
     finalBracketLocked,
     finalBracketLockedAt,
     honorBracketEditable,

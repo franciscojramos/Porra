@@ -58,10 +58,25 @@ async function deployLocal() {
   execSync("npx prisma migrate deploy", { stdio: "inherit", env: process.env });
 }
 
+async function syncOfficialKnockoutOnDeploy() {
+  try {
+    const { syncOfficialKnockoutBracket } = await import("../src/lib/officialKnockoutBracket");
+    const result = await syncOfficialKnockoutBracket();
+    console.log(
+      result.ready
+        ? `Cuadro KO sincronizado (${result.updated} partidos)`
+        : "Cuadro KO pendiente de clasificación oficial"
+    );
+  } catch (error) {
+    console.error("Error sincronizando cuadro KO:", error);
+  }
+}
+
 async function main() {
   const url = process.env.DATABASE_URL || "";
   if (url.startsWith("libsql://")) {
     await deployTurso();
+    await syncOfficialKnockoutOnDeploy();
     return;
   }
   await deployLocal();

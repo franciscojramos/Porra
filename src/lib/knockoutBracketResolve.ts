@@ -212,16 +212,23 @@ export function computeBracketState(
   };
 }
 
-/** R32 con equipos del usuario; rondas siguientes con cruces según resultados oficiales previos. */
+/** R32 con clasificación oficial; rondas siguientes con cruces según resultados oficiales previos. */
 export function computeProgressiveBracketState(
   matches: KnockoutMatchInput[],
   predictions: Record<string, PredictionInput | undefined>,
   standings: StandingByGroup,
   bestThirdIds: string[],
   officialWinners: Map<number, string>,
-  officialLosers: Map<number, string>
+  officialLosers: Map<number, string>,
+  officialStandings?: StandingByGroup,
+  officialBestThirdIds?: string[]
 ): BracketState {
   const bestThirdSet = new Set(bestThirdIds);
+  const officialBestThirdSet = new Set(officialBestThirdIds ?? []);
+  const officialStandingsReady =
+    officialStandings &&
+    Object.keys(officialStandings).length >= 12 &&
+    officialBestThirdSet.size === 8;
   const userWinners = new Map<number, string>();
   const userLosers = new Map<number, string>();
   const slots: Record<string, ResolvedMatchSlot> = {};
@@ -233,17 +240,26 @@ export function computeProgressiveBracketState(
     const teamWinners = useOfficialTree ? officialWinners : userWinners;
     const teamLosers = useOfficialTree ? officialLosers : userLosers;
 
+    const r32Standings =
+      match.stage === "ROUND_32" && officialStandingsReady
+        ? officialStandings!
+        : standings;
+    const r32BestThirds =
+      match.stage === "ROUND_32" && officialStandingsReady
+        ? officialBestThirdSet
+        : bestThirdSet;
+
     const homeTeamId = resolveSlotLabel(
       match.homeLabel,
-      standings,
-      bestThirdSet,
+      r32Standings,
+      r32BestThirds,
       teamWinners,
       teamLosers
     );
     const awayTeamId = resolveSlotLabel(
       match.awayLabel,
-      standings,
-      bestThirdSet,
+      r32Standings,
+      r32BestThirds,
       teamWinners,
       teamLosers
     );
@@ -312,15 +328,10 @@ export function computeProgressiveBracketState(
 export function teamDisplayName(
   teamId: string | null,
   label: string | null,
-  teamMap: Record<string, TeamInfo | undefined>,
-  officialTeamId?: string | null
+  teamMap: Record<string, TeamInfo | undefined>
 ): string {
   if (teamId && teamMap[teamId]) {
     const t = teamMap[teamId]!;
-    return formatTeamDisplay(t.name, t.code);
-  }
-  if (officialTeamId && teamMap[officialTeamId]) {
-    const t = teamMap[officialTeamId]!;
     return formatTeamDisplay(t.name, t.code);
   }
   return label ?? "Por definir";
@@ -328,10 +339,8 @@ export function teamDisplayName(
 
 export function teamCode(
   teamId: string | null,
-  teamMap: Record<string, TeamInfo | undefined>,
-  officialTeamId?: string | null
+  teamMap: Record<string, TeamInfo | undefined>
 ): string {
   if (teamId && teamMap[teamId]) return teamMap[teamId]!.code;
-  if (officialTeamId && teamMap[officialTeamId]) return teamMap[officialTeamId]!.code;
   return "—";
 }

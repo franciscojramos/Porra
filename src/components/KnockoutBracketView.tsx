@@ -24,6 +24,8 @@ type Props = {
   initialPredictions: Record<string, PredictionInput>;
   userStandings: StandingByGroup;
   userBestThirdIds: string[];
+  officialStandings: StandingByGroup;
+  officialBestThirdIds: string[];
   editable: boolean;
   editableStages: string[];
   stageEditStates: KnockoutStageEditState[];
@@ -145,18 +147,8 @@ function BracketMatchCard({
   onScoresChange: (home: number, away: number) => void;
   onAdvancesChange: (teamId: string) => void;
 }) {
-  const homeName = teamDisplayName(
-    slot.homeTeamId,
-    slot.homeLabel,
-    teamMap,
-    match.homeTeamId
-  );
-  const awayName = teamDisplayName(
-    slot.awayTeamId,
-    slot.awayLabel,
-    teamMap,
-    match.awayTeamId
-  );
+  const homeName = teamDisplayName(slot.homeTeamId, slot.homeLabel, teamMap);
+  const awayName = teamDisplayName(slot.awayTeamId, slot.awayLabel, teamMap);
   const winnerId = slot.winnerTeamId;
   const homeWinner = winnerId === slot.homeTeamId;
   const awayWinner = winnerId === slot.awayTeamId;
@@ -255,6 +247,8 @@ export function KnockoutBracketView({
   initialPredictions,
   userStandings,
   userBestThirdIds,
+  officialStandings,
+  officialBestThirdIds,
   editable,
   editableStages,
   stageEditStates,
@@ -312,7 +306,9 @@ export function KnockoutBracketView({
         userStandings,
         userBestThirdIds,
         officialWinnersMap,
-        officialLosersMap
+        officialLosersMap,
+        officialStandings,
+        officialBestThirdIds
       ),
     [
       matches,
@@ -321,6 +317,8 @@ export function KnockoutBracketView({
       userBestThirdIds,
       officialWinnersMap,
       officialLosersMap,
+      officialStandings,
+      officialBestThirdIds,
     ]
   );
 
@@ -526,8 +524,8 @@ export function KnockoutBracketView({
       {!bracketState.complete && editable && (
         <p className="text-xs text-amber-200">
           Marcador sobre 90&apos; o 120&apos; (antes de penaltis). Si empatas, elige quién pasa.
-          Necesitas Fase 1 guardada para los dieciseisavos. Octavos y rondas siguientes usan los
-          equipos que hayan pasado oficialmente en la ronda anterior.
+          Los dieciseisavos muestran los equipos clasificados oficialmente. Octavos y rondas
+          siguientes usan los resultados oficiales de la ronda anterior.
         </p>
       )}
 

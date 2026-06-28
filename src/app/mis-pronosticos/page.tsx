@@ -60,6 +60,8 @@ export default async function MisPronosticosPage({
     stageLabels,
     userStandings,
     userBestThirdIds,
+    officialStandings,
+    officialBestThirdIds,
     finalBracket,
     finalBracketLocked,
     finalBracketLockedAt,
@@ -152,6 +154,8 @@ export default async function MisPronosticosPage({
                     initialPredictions={initialPredictions}
                     userStandings={userStandings}
                     userBestThirdIds={userBestThirdIds}
+                    officialStandings={officialStandings}
+                    officialBestThirdIds={officialBestThirdIds}
                     editable={knockoutEditable}
                     editableStages={editableStages}
                     stageEditStates={stageEditStates}

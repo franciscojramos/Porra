@@ -13,6 +13,7 @@ import {
 import { prisma } from "@/lib/db";
 import { canEditPhase1Predictions, canEditPhase2Predictions } from "@/lib/predictions";
 import { canEditKnockoutMatchStage } from "@/lib/knockoutRoundUnlock";
+import { resolveSlotLabel, resolveKnockoutWinner } from "@/lib/knockoutBracketResolve";
 import { MatchStage } from "@prisma/client";
 import { afterOfficialResultsUpdate, revalidateOfficialResults, scheduleAfterOfficialResultsUpdate } from "@/lib/afterOfficialUpdate";
 import { syncPendingMatchResults } from "@/lib/footballData/syncResults";
@@ -321,6 +322,27 @@ export async function saveAllKnockoutPredictionsAction(formData: FormData) {
     orderBy: { matchNumber: "asc" },
   });
 
+  const [officialStandingRows, officialThirdRows] = await Promise.all([
+    prisma.officialGroupStanding.findMany(),
+    prisma.officialBestThird.findMany(),
+  ]);
+  const officialStandings = Object.fromEntries(
+    officialStandingRows.map((s) => [
+      s.groupId,
+      {
+        firstTeamId: s.firstTeamId,
+        secondTeamId: s.secondTeamId,
+        thirdTeamId: s.thirdTeamId,
+        fourthTeamId: s.fourthTeamId,
+      },
+    ])
+  );
+  const officialBestThirdSet = new Set(officialThirdRows.map((t) => t.teamId));
+  const officialTeamsReady =
+    officialStandingRows.length >= 12 && officialBestThirdSet.size === 8;
+  const officialWinners = new Map<number, string>();
+  const officialLosers = new Map<number, string>();
+
   const toSave: {
     matchId: string;
     homeScore: number;
@@ -329,6 +351,45 @@ export async function saveAllKnockoutPredictionsAction(formData: FormData) {
   }[] = [];
 
   for (const match of matches) {
+    let homeTeamId = match.homeTeamId;
+    let awayTeamId = match.awayTeamId;
+    if (officialTeamsReady) {
+      homeTeamId = resolveSlotLabel(
+        match.homeLabel,
+        officialStandings,
+        officialBestThirdSet,
+        officialWinners,
+        officialLosers
+      );
+      awayTeamId = resolveSlotLabel(
+        match.awayLabel,
+        officialStandings,
+        officialBestThirdSet,
+        officialWinners,
+        officialLosers
+      );
+
+      if (
+        match.homeScore !== null &&
+        match.awayScore !== null &&
+        homeTeamId &&
+        awayTeamId
+      ) {
+        const winnerId = resolveKnockoutWinner(
+          match.homeScore,
+          match.awayScore,
+          homeTeamId,
+          awayTeamId,
+          match.winnerTeamId
+        );
+        if (winnerId) {
+          const loserId = winnerId === homeTeamId ? awayTeamId : homeTeamId;
+          officialWinners.set(match.matchNumber, winnerId);
+          officialLosers.set(match.matchNumber, loserId);
+        }
+      }
+    }
+
     const pred = predictions[match.id];
     if (!pred) continue;
 
@@ -348,7 +409,6 @@ export async function saveAllKnockoutPredictionsAction(formData: FormData) {
       };
     }
 
-    const { homeTeamId, awayTeamId } = match;
     if (homeScore === awayScore && homeTeamId && awayTeamId) {
       if (!advancesTeamId || ![homeTeamId, awayTeamId].includes(advancesTeamId)) {
         return {
