@@ -92,7 +92,7 @@ export const SCORING_RULES: ScoringRule[] = [
   {
     key: "ko_r32_r16_1x2",
     points: 5,
-    label: "Dieciseisavos/Octavos · Acertar 1X2",
+    label: "Dieciseisavos/Octavos · Acertar quién pasa (ganador)",
     phase: "fase2",
     block: "Partidos eliminatorias",
   },
