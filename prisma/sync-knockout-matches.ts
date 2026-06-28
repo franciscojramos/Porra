@@ -3,10 +3,23 @@
  * Uso: npm run db:sync-knockout
  */
 import { PrismaClient } from "@prisma/client";
+import { PrismaLibSql } from "@prisma/adapter-libsql";
 import { KNOCKOUT_MATCHES } from "./world-cup-matches";
 import { syncOfficialKnockoutBracket } from "../src/lib/officialKnockoutBracket";
 
-const prisma = new PrismaClient();
+function createPrismaClient() {
+  const databaseUrl = process.env.DATABASE_URL || "";
+  if (databaseUrl.startsWith("libsql://")) {
+    const adapter = new PrismaLibSql({
+      url: databaseUrl,
+      authToken: process.env.TURSO_AUTH_TOKEN || "",
+    });
+    return new PrismaClient({ adapter });
+  }
+  return new PrismaClient();
+}
+
+const prisma = createPrismaClient();
 
 async function main() {
   let updated = 0;

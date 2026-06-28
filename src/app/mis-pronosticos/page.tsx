@@ -144,7 +144,7 @@ export default async function MisPronosticosPage({
                   <Card title="Tu llave de eliminatorias">
                   <p className="mb-6 text-sm text-emerald-100">
                     Edita los marcadores y observa cómo el ganador de cada partido avanza al
-                    siguiente cruce.
+                    siguiente cruce. Pulsa <strong>Guardar todo</strong> al terminar.
                   </p>
                   <KnockoutBracketView
                     matches={serializedMatches}

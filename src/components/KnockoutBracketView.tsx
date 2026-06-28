@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useMemo, useState, useTransition } from "react";
 import { MatchStage } from "@prisma/client";
-import { saveMatchPredictionAction } from "@/lib/actions";
+import { saveAllKnockoutPredictionsAction } from "@/lib/actions";
 import {
   computeProgressiveBracketState,
   teamDisplayName,
@@ -68,6 +68,14 @@ function buildWinnerDestinations(matches: KnockoutMatchInput[]) {
   return map;
 }
 
+function predictionsEqual(a: PredictionInput, b: PredictionInput) {
+  return (
+    a.homeScore === b.homeScore &&
+    a.awayScore === b.awayScore &&
+    (a.advancesTeamId ?? null) === (b.advancesTeamId ?? null)
+  );
+}
+
 function BracketTeamRow({
   name,
   score,
@@ -126,7 +134,6 @@ function BracketMatchCard({
   destination,
   onScoresChange,
   onAdvancesChange,
-  saving,
 }: {
   match: SerializedMatch;
   slot: ReturnType<typeof computeProgressiveBracketState>["slots"][string];
@@ -137,7 +144,6 @@ function BracketMatchCard({
   destination: { matchNumber: number; side: "home" | "away" } | undefined;
   onScoresChange: (home: number, away: number) => void;
   onAdvancesChange: (teamId: string) => void;
-  saving: boolean;
 }) {
   const homeName = teamDisplayName(
     slot.homeTeamId,
@@ -165,7 +171,7 @@ function BracketMatchCard({
           : winnerId
             ? "border-emerald-400/40 bg-emerald-500/10 shadow-lg shadow-emerald-900/30"
             : "border-white/10 bg-emerald-950/60"
-      } ${saving ? "opacity-80" : ""}`}
+      }`}
     >
       <div className="mb-2 flex items-center justify-between gap-1">
         <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-400">
@@ -283,12 +289,20 @@ export function KnockoutBracketView({
     }
     return base;
   });
-  const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
-  const [savedFlash, setSavedFlash] = useState<string | null>(null);
-  const [, startTransition] = useTransition();
-  const saveTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const [savedBaseline, setSavedBaseline] = useState(initialPredictions);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isSaving, startSaveTransition] = useTransition();
 
   const winnerDestinations = useMemo(() => buildWinnerDestinations(matches), [matches]);
+
+  const hasUnsavedChanges = useMemo(() => {
+    return matches.some((m) => {
+      const current = predictions[m.id] ?? { homeScore: 0, awayScore: 0, advancesTeamId: null };
+      const saved = savedBaseline[m.id] ?? { homeScore: 0, awayScore: 0, advancesTeamId: null };
+      return !predictionsEqual(current, saved);
+    });
+  }, [matches, predictions, savedBaseline]);
 
   const bracketState = useMemo(
     () =>
@@ -318,73 +332,43 @@ export function KnockoutBracketView({
     return map;
   }, [matches]);
 
-  const persistPrediction = useCallback(
-    (matchId: string, homeScore: number, awayScore: number, advancesTeamId: string | null) => {
-      const existing = saveTimers.current.get(matchId);
-      if (existing) clearTimeout(existing);
+  const handleScoresChange = useCallback((matchId: string, homeScore: number, awayScore: number) => {
+    setPredictions((prev) => {
+      const current = prev[matchId] ?? { homeScore: 0, awayScore: 0, advancesTeamId: null };
+      const advancesTeamId =
+        homeScore === awayScore ? current.advancesTeamId ?? null : null;
+      return { ...prev, [matchId]: { homeScore, awayScore, advancesTeamId } };
+    });
+    setSaveMessage(null);
+    setSaveError(null);
+  }, []);
 
-      saveTimers.current.set(
-        matchId,
-        setTimeout(() => {
-          setSavingIds((prev) => new Set(prev).add(matchId));
-          const fd = new FormData();
-          fd.set("matchId", matchId);
-          fd.set("homeScore", String(homeScore));
-          fd.set("awayScore", String(awayScore));
-          if (advancesTeamId) fd.set("advancesTeamId", advancesTeamId);
+  const handleAdvancesChange = useCallback((matchId: string, teamId: string) => {
+    setPredictions((prev) => {
+      const current = prev[matchId] ?? { homeScore: 0, awayScore: 0, advancesTeamId: null };
+      return { ...prev, [matchId]: { ...current, advancesTeamId: teamId } };
+    });
+    setSaveMessage(null);
+    setSaveError(null);
+  }, []);
 
-          startTransition(async () => {
-            await saveMatchPredictionAction(fd);
-            setSavingIds((prev) => {
-              const next = new Set(prev);
-              next.delete(matchId);
-              return next;
-            });
-            setSavedFlash(matchId);
-            setTimeout(() => setSavedFlash((c) => (c === matchId ? null : c)), 1500);
-          });
-        }, 600)
-      );
-    },
-    []
-  );
+  const handleSaveAll = useCallback(() => {
+    startSaveTransition(async () => {
+      setSaveMessage(null);
+      setSaveError(null);
 
-  const handleScoresChange = useCallback(
-    (matchId: string, homeScore: number, awayScore: number) => {
-      setPredictions((prev) => {
-        const current = prev[matchId] ?? { homeScore: 0, awayScore: 0, advancesTeamId: null };
-        const advancesTeamId =
-          homeScore === awayScore ? current.advancesTeamId ?? null : null;
-        const next = { ...prev, [matchId]: { homeScore, awayScore, advancesTeamId } };
-        const match = matches.find((m) => m.id === matchId);
-        if (match && isMatchEditable(match.stage)) {
-          persistPrediction(matchId, homeScore, awayScore, advancesTeamId);
-        }
-        return next;
-      });
-    },
-    [editable, persistPrediction, matches, isMatchEditable]
-  );
+      const fd = new FormData();
+      fd.set("predictions", JSON.stringify(predictions));
 
-  const handleAdvancesChange = useCallback(
-    (matchId: string, teamId: string) => {
-      setPredictions((prev) => {
-        const current = prev[matchId] ?? { homeScore: 0, awayScore: 0, advancesTeamId: null };
-        const next = { ...prev, [matchId]: { ...current, advancesTeamId: teamId } };
-        const match = matches.find((m) => m.id === matchId);
-        if (match && isMatchEditable(match.stage)) {
-          persistPrediction(
-            matchId,
-            current.homeScore,
-            current.awayScore,
-            teamId
-          );
-        }
-        return next;
-      });
-    },
-    [editable, persistPrediction, matches, isMatchEditable]
-  );
+      const result = await saveAllKnockoutPredictionsAction(fd);
+      if (result.ok) {
+        setSavedBaseline({ ...predictions });
+        setSaveMessage("Pronósticos guardados");
+      } else {
+        setSaveError(result.error ?? "No se pudo guardar.");
+      }
+    });
+  }, [predictions]);
 
   return (
     <div className="space-y-6">
@@ -413,8 +397,8 @@ export function KnockoutBracketView({
             Vista lista
           </button>
         </div>
-        {editable && (
-          <p className="text-xs text-emerald-400">Los cambios se guardan solos al editar</p>
+        {editable && hasUnsavedChanges && (
+          <p className="text-xs text-amber-300">Tienes cambios sin guardar</p>
         )}
       </div>
 
@@ -468,17 +452,11 @@ export function KnockoutBracketView({
                               editable={matchEditable}
                               lockedReason={lockedReasonByStage[match.stage]}
                               destination={dest}
-                              saving={savingIds.has(match.id)}
                               onScoresChange={(h, a) => handleScoresChange(match.id, h, a)}
                               onAdvancesChange={(teamId) =>
                                 handleAdvancesChange(match.id, teamId)
                               }
                             />
-                            {savedFlash === match.id && (
-                              <span className="absolute -right-1 -top-1 rounded-full bg-emerald-500 px-1.5 py-0.5 text-[9px] font-bold text-emerald-950">
-                                ✓
-                              </span>
-                            )}
                           </div>
                         </div>
                       );
@@ -531,7 +509,6 @@ export function KnockoutBracketView({
                         editable={matchEditable}
                         lockedReason={lockedReasonByStage[match.stage]}
                         destination={dest}
-                        saving={savingIds.has(match.id)}
                         onScoresChange={(h, a) => handleScoresChange(match.id, h, a)}
                         onAdvancesChange={(teamId) =>
                           handleAdvancesChange(match.id, teamId)
@@ -552,6 +529,27 @@ export function KnockoutBracketView({
           Necesitas Fase 1 guardada para los dieciseisavos. Octavos y rondas siguientes usan los
           equipos que hayan pasado oficialmente en la ronda anterior.
         </p>
+      )}
+
+      {editable && (
+        <div className="border-t border-white/10 pt-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={handleSaveAll}
+              disabled={isSaving}
+              className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-400 disabled:opacity-60"
+            >
+              {isSaving ? "Guardando…" : "Guardar todo"}
+            </button>
+            {saveMessage && (
+              <p className="text-sm text-emerald-300">✓ {saveMessage}</p>
+            )}
+            {saveError && (
+              <p className="text-sm text-amber-300">{saveError}</p>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

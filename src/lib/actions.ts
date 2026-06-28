@@ -296,6 +296,95 @@ export async function saveMatchPredictionAction(formData: FormData) {
   revalidatePredictionPaths(userId);
 }
 
+type KnockoutPredictionPayload = {
+  homeScore: number;
+  awayScore: number;
+  advancesTeamId: string | null;
+};
+
+/** Guarda todos los pronósticos de eliminatorias editables de una vez. */
+export async function saveAllKnockoutPredictionsAction(formData: FormData) {
+  const ctx = await assertCanSavePhase2Prediction(formData);
+  if (!ctx.allowed) {
+    return { ok: false as const, error: "No puedes guardar pronósticos ahora." };
+  }
+
+  let predictions: Record<string, KnockoutPredictionPayload>;
+  try {
+    predictions = JSON.parse(String(formData.get("predictions") || "{}"));
+  } catch {
+    return { ok: false as const, error: "Datos inválidos." };
+  }
+
+  const matches = await prisma.match.findMany({
+    where: { stage: { not: MatchStage.GROUP } },
+    orderBy: { matchNumber: "asc" },
+  });
+
+  const toSave: {
+    matchId: string;
+    homeScore: number;
+    awayScore: number;
+    advancesTeamId: string | null;
+  }[] = [];
+
+  for (const match of matches) {
+    const pred = predictions[match.id];
+    if (!pred) continue;
+
+    if (!ctx.adminPanel) {
+      const stageAllowed = await canEditKnockoutMatchStage(match.stage);
+      if (!stageAllowed) continue;
+    }
+
+    const homeScore = Number(pred.homeScore);
+    const awayScore = Number(pred.awayScore);
+    const advancesTeamId = pred.advancesTeamId || null;
+
+    if (Number.isNaN(homeScore) || Number.isNaN(awayScore) || homeScore < 0 || awayScore < 0) {
+      return {
+        ok: false as const,
+        error: `Marcador inválido en el partido #${match.matchNumber}.`,
+      };
+    }
+
+    const { homeTeamId, awayTeamId } = match;
+    if (homeScore === awayScore && homeTeamId && awayTeamId) {
+      if (!advancesTeamId || ![homeTeamId, awayTeamId].includes(advancesTeamId)) {
+        return {
+          ok: false as const,
+          error: `Elige quién pasa en el partido #${match.matchNumber} (empate).`,
+        };
+      }
+    }
+
+    toSave.push({ matchId: match.id, homeScore, awayScore, advancesTeamId });
+  }
+
+  for (const item of toSave) {
+    await prisma.matchPrediction.upsert({
+      where: { userId_matchId: { userId: ctx.userId, matchId: item.matchId } },
+      create: {
+        userId: ctx.userId,
+        matchId: item.matchId,
+        homeScore: item.homeScore,
+        awayScore: item.awayScore,
+        advancesTeamId: item.advancesTeamId,
+        points: 0,
+      },
+      update: {
+        homeScore: item.homeScore,
+        awayScore: item.awayScore,
+        advancesTeamId: item.advancesTeamId,
+        points: 0,
+      },
+    });
+  }
+
+  revalidatePredictionPaths(ctx.userId);
+  return { ok: true as const };
+}
+
 export async function saveStandingPredictionAction(formData: FormData) {
   const { allowed, userId } = await assertCanSavePhase1Prediction(formData);
   if (!allowed) return;
