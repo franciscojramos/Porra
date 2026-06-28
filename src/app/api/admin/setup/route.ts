@@ -28,12 +28,18 @@ async function runScoring() {
 }
 
 async function runMigrate() {
-  const { execSync } = await import("child_process");
-  const output = execSync("npx prisma migrate deploy", {
-    env: process.env,
-    encoding: "utf-8",
-  });
-  return output.trim();
+  const module = await import("@/../prisma/deploy-migrations");
+  if (typeof module.default === "function") {
+    await module.default();
+  } else {
+    const { execSync } = await import("child_process");
+    execSync("npx tsx prisma/deploy-migrations.ts", {
+      env: process.env,
+      encoding: "utf-8",
+      stdio: "pipe",
+    });
+  }
+  return "Migraciones aplicadas";
 }
 
 async function runSyncKnockout() {
