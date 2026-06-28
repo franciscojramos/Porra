@@ -27,6 +27,22 @@ async function runScoring() {
   }
 }
 
+async function runMigrate() {
+  const { execSync } = await import("child_process");
+  const output = execSync("npx prisma migrate deploy", {
+    env: process.env,
+    encoding: "utf-8",
+  });
+  return output.trim();
+}
+
+async function runSyncKnockout() {
+  const module = await import("@/../prisma/sync-knockout-matches");
+  if (typeof module.default === "function") {
+    await module.default();
+  }
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const token = searchParams.get("token");
@@ -102,17 +118,32 @@ export async function POST(request: Request) {
 
       case "scoring":
         await runScoring();
-        return NextResponse.json({ 
-          success: true, 
-          message: "✅ Sistema de puntuación sincronizado" 
+        return NextResponse.json({
+          success: true,
+          message: "✅ Sistema de puntuación sincronizado",
+        });
+
+      case "migrate":
+        const migrateOutput = await runMigrate();
+        return NextResponse.json({
+          success: true,
+          message: "✅ Migraciones aplicadas",
+          output: migrateOutput,
+        });
+
+      case "sync-knockout":
+        await runSyncKnockout();
+        return NextResponse.json({
+          success: true,
+          message: "✅ Eliminatorias sincronizadas desde seed",
         });
 
       default:
         return NextResponse.json(
-          { 
-            error: "Acción no válida", 
-            available: ["status", "seed", "scoring"],
-            example: { action: "seed" }
+          {
+            error: "Acción no válida",
+            available: ["status", "seed", "scoring", "migrate", "sync-knockout"],
+            example: { action: "migrate" },
           },
           { status: 400 }
         );
