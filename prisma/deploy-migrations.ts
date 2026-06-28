@@ -17,6 +17,34 @@ async function appliedMigrations(client: ReturnType<typeof createClient>) {
   }
 }
 
+function isBenignMigrationError(error: unknown): boolean {
+  const msg = String(
+    error instanceof Error
+      ? error.message
+      : (error as { cause?: { message?: string } })?.cause?.message ?? error
+  ).toLowerCase();
+  return (
+    msg.includes("duplicate column name") ||
+    msg.includes("already exists") ||
+    msg.includes("duplicate column")
+  );
+}
+
+async function executeStatement(
+  client: ReturnType<typeof createClient>,
+  statement: string
+) {
+  try {
+    await client.execute(statement);
+  } catch (error) {
+    if (isBenignMigrationError(error)) {
+      console.warn(`⚠ Ya aplicado: ${statement.slice(0, 72).replace(/\s+/g, " ")}…`);
+      return;
+    }
+    throw error;
+  }
+}
+
 async function deployTurso() {
   const url = process.env.DATABASE_URL!;
   const authToken = process.env.TURSO_AUTH_TOKEN || "";
@@ -38,7 +66,7 @@ async function deployTurso() {
       .filter(Boolean);
 
     for (const statement of statements) {
-      await client.execute(statement);
+      await executeStatement(client, statement);
     }
 
     await client.execute({

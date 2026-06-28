@@ -10,7 +10,12 @@ import {
 } from "@/lib/actions";
 import { getUserProfile } from "@/lib/data";
 import { getOfficialResults } from "@/lib/official";
-import { getMatchAwayName, getMatchHomeName, getMatchMeta } from "@/lib/matchDisplay";
+import { getMatchMeta } from "@/lib/matchDisplay";
+import {
+  buildOfficialKnockoutSlots,
+  getKnockoutMatchAwayName,
+  getKnockoutMatchHomeName,
+} from "@/lib/knockoutDisplay";
 import { AdminEditBanner } from "@/components/LockBanner";
 import { Phase1AwardsForm } from "@/components/Phase1AwardsForm";
 import { Phase1GruposForm } from "@/components/Phase1GruposForm";
@@ -39,6 +44,14 @@ export default async function AdminUserEditPage({
   if (!profile) notFound();
 
   const { user, groupsData, knockoutData, awardsData } = profile;
+
+  const knockoutSlots = buildOfficialKnockoutSlots(
+    knockoutData.matches,
+    knockoutData.officialStandings,
+    knockoutData.officialBestThirdIds,
+    knockoutData.officialWinners,
+    knockoutData.officialLosers
+  );
 
   return (
     <PageShell
@@ -178,7 +191,7 @@ export default async function AdminUserEditPage({
                     <input type="hidden" name="userId" value={user.id} />
                     <input type="hidden" name="matchId" value={match.id} />
                     <span className="w-full text-xs text-emerald-400">{getMatchMeta(match)}</span>
-                    <span>{getMatchHomeName(match, knockoutData.teamMap)}</span>
+                    <span>{getKnockoutMatchHomeName(match, knockoutData.teamMap, knockoutSlots)}</span>
                     <ScoreInput
                       name="homeScore"
                       label="L"
@@ -190,7 +203,7 @@ export default async function AdminUserEditPage({
                       label="V"
                       defaultValue={prediction?.awayScore}
                     />
-                    <span>{getMatchAwayName(match, knockoutData.teamMap)}</span>
+                    <span>{getKnockoutMatchAwayName(match, knockoutData.teamMap, knockoutSlots)}</span>
                     <SubmitButton label="OK" />
                   </form>
                 );

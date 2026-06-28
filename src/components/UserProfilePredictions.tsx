@@ -4,7 +4,12 @@ import { Card } from "@/components/ui";
 import { OfficialAwardResult } from "@/components/OfficialAwardResult";
 import { OfficialGroupStanding } from "@/components/OfficialGroupStanding";
 import { OfficialMatchResult } from "@/components/OfficialMatchResult";
-import { getMatchAwayName, getMatchHomeName, getMatchMeta } from "@/lib/matchDisplay";
+import { getMatchHomeName, getMatchAwayName, getMatchMeta } from "@/lib/matchDisplay";
+import {
+  buildOfficialKnockoutSlots,
+  getKnockoutMatchAwayName,
+  getKnockoutMatchHomeName,
+} from "@/lib/knockoutDisplay";
 import { formatTeamDisplay } from "@/lib/teamFlags";
 import type { getOfficialResults } from "@/lib/official";
 
@@ -72,6 +77,14 @@ export function UserProfilePredictions({ profile }: { profile: ProfileData }) {
 
   const bestThirdTeams = Object.values(teamMap).filter((t) =>
     bestThirdTeamIds.has(t.id)
+  );
+
+  const knockoutSlots = buildOfficialKnockoutSlots(
+    knockoutData.matches,
+    knockoutData.officialStandings,
+    knockoutData.officialBestThirdIds,
+    knockoutData.officialWinners,
+    knockoutData.officialLosers
   );
 
   return (
@@ -267,11 +280,11 @@ export function UserProfilePredictions({ profile }: { profile: ProfileData }) {
                     <span className="w-full text-xs text-emerald-400">
                       {getMatchMeta(match)}
                     </span>
-                    <span>{getMatchHomeName(match, knockoutData.teamMap)}</span>
+                    <span>{getKnockoutMatchHomeName(match, knockoutData.teamMap, knockoutSlots)}</span>
                     <span className="font-bold text-emerald-300">
                       {p ? `${p.homeScore} - ${p.awayScore}` : "—"}
                     </span>
-                    <span>{getMatchAwayName(match, knockoutData.teamMap)}</span>
+                    <span>{getKnockoutMatchAwayName(match, knockoutData.teamMap, knockoutSlots)}</span>
                     {p && match.homeScore !== null && (
                       <span className="text-xs text-amber-200">+{p.points} pts</span>
                     )}
