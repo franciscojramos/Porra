@@ -4,6 +4,7 @@ import { Card } from "@/components/ui";
 import { OfficialAwardResult } from "@/components/OfficialAwardResult";
 import { OfficialGroupStanding } from "@/components/OfficialGroupStanding";
 import { OfficialMatchResult } from "@/components/OfficialMatchResult";
+import { KnockoutTiebreakerNote } from "@/components/KnockoutTiebreakerNote";
 import { getMatchHomeName, getMatchAwayName, getMatchMeta } from "@/lib/matchDisplay";
 import {
   buildOfficialKnockoutSlots,
@@ -293,10 +294,19 @@ export function UserProfilePredictions({ profile }: { profile: ProfileData }) {
                       <span className="text-xs text-amber-200">+{p.points} pts</span>
                     )}
                   </div>
+                  {p && (
+                    <KnockoutTiebreakerNote
+                      homeScore={p.homeScore}
+                      awayScore={p.awayScore}
+                      advancesTeamId={p.advancesTeamId}
+                      teamMap={knockoutData.teamMap}
+                    />
+                  )}
                   <OfficialMatchResult
                     match={match}
                     teamMap={knockoutData.teamMap}
                     prediction={p}
+                    isKnockout
                   />
                 </div>
               );
