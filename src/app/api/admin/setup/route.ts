@@ -28,9 +28,9 @@ async function runScoring() {
 }
 
 async function runMigrate() {
-  const module = await import("@/../prisma/deploy-migrations");
-  if (typeof module.default === "function") {
-    await module.default();
+  const migrateModule = await import("@/../prisma/deploy-migrations");
+  if (typeof migrateModule.default === "function") {
+    await migrateModule.default();
   } else {
     const { execSync } = await import("child_process");
     execSync("npx tsx prisma/deploy-migrations.ts", {
@@ -43,9 +43,9 @@ async function runMigrate() {
 }
 
 async function runSyncKnockout() {
-  const module = await import("@/../prisma/sync-knockout-matches");
-  if (typeof module.default === "function") {
-    await module.default();
+  const syncKnockoutModule = await import("@/../prisma/sync-knockout-matches");
+  if (typeof syncKnockoutModule.default === "function") {
+    await syncKnockoutModule.default();
   }
 }
 
